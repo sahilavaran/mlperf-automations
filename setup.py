@@ -140,20 +140,28 @@ class CustomInstallCommand(install):
     def custom_function(self):
         commit_hash = get_commit_hash()
         import cmind
-        r = cmind.access({'action': 'rm',
-                          'automation': 'repo',
-                          'artifact': 'mlcommons@cm4mlops',
-                          'force': True,
-                          'all': True})
+        clean_mlops_repo = os.environ.get('CM_MLOPS_CLEAN_REPO', 'false')
+        if str(clean_mlops_repo).lower() not in ["no", "0", "false", "off"]:
+            r = cmind.access({'action': 'rm',
+                              'automation': 'repo',
+                              'artifact': 'mlcommons@cm4mlops',
+                              'force': True,
+                              'all': True})
+
         branch = os.environ.get('CM_MLOPS_REPO_BRANCH', 'dev')
-        r = cmind.access({'action': 'pull',
-                          'automation': 'repo',
-                          'artifact': 'mlcommons@mlperf-automations',
-                          'checkout': commit_hash,
-                          'branch': branch})
-        print(r)
-        if r['return'] > 0:
-            return r['return']
+        pull_default_mlops_repo = os.environ.get(
+            'CM_PULL_DEFAULT_MLOPS_REPO', 'true')
+
+        if str(pull_default_mlops_repo).lower() not in [
+                "no", "0", "false", "off"]:
+            r = cmind.access({'action': 'pull',
+                              'automation': 'repo',
+                              'artifact': 'mlcommons@mlperf-automations',
+                              'checkout': commit_hash,
+                              'branch': branch})
+            print(r)
+            if r['return'] > 0:
+                return r['return']
 
     def get_sys_platform(self):
         self.system = platform.system()
