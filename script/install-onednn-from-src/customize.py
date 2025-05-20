@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -13,10 +14,10 @@ def preprocess(i):
 
     run_cmd = ""
 
-    env['CM_RUN_CMD'] = run_cmd
-    env['CM_ONEDNN_INSTALLED_PATH'] = os.path.join(os.getcwd(), "onednn")
+    env['MLC_RUN_CMD'] = run_cmd
+    env['MLC_ONEDNN_INSTALLED_PATH'] = os.path.join(os.getcwd(), "onednn")
 
-    if env.get('CM_FOR_INTEL_MLPERF_INFERENCE_BERT', '') == "yes":
+    if is_true(env.get('MLC_FOR_INTEL_MLPERF_INFERENCE_BERT', '')):
         i['run_script_input']['script_name'] = "run-intel-mlperf-inference-bert"
 
     automation = i['automation']

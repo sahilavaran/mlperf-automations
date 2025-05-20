@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -12,8 +13,8 @@ def preprocess(i):
 
     automation = i['automation']
 
-    env['CM_GIT_CHECKOUT'] = "v" + env['CM_VERSION']
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    env['MLC_GIT_CHECKOUT'] = "v" + env['MLC_VERSION']
+    quiet = is_true(env.get('MLC_QUIET', False))
 
     return {'return': 0}
 
@@ -26,8 +27,8 @@ def postprocess(i):
     env['+LD_LIBRARY_PATH'] = []
 
     protobuf_install_path = os.path.join(os.getcwd(), "install")
-    env['CM_GOOGLE_PROTOBUF_SRC_PATH'] = env['CM_GIT_REPO_CHECKOUT_PATH']
-    env['CM_GOOGLE_PROTOBUF_INSTALL_PATH'] = protobuf_install_path
+    env['MLC_GOOGLE_PROTOBUF_SRC_PATH'] = env['MLC_GIT_REPO_CHECKOUT_PATH']
+    env['MLC_GOOGLE_PROTOBUF_INSTALL_PATH'] = protobuf_install_path
     env['+C_INCLUDE_PATH'].append(
         os.path.join(
             protobuf_install_path,

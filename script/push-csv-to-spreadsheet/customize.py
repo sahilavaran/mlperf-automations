@@ -1,5 +1,4 @@
-from cmind import utils
-import cmind as cm
+from mlc import utils
 import os
 
 
@@ -10,8 +9,4 @@ def preprocess(i):
     meta = i['meta']
     automation = i['automation']
 
-    return {'return': 0}
-
-
-def postprocess(i):
     return {'return': 0}

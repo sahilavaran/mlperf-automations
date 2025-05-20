@@ -1,17 +1,18 @@
-from cmind import utils
+from mlc import utils
 import os
 import shutil
+from utils import is_true, is_false
 
 
 def preprocess(i):
 
     os_info = i['os_info']
     env = i['env']
-
-    print("")
+    logger = i['automation'].logger
+    logger.info("")
     print("Using MLCommons Inference source from '" +
-          env['CM_MLPERF_INFERENCE_SOURCE'] + "'")
-    print("")
+          env['MLC_MLPERF_INFERENCE_SOURCE'] + "'")
+    logger.info("")
 
     if os_info['platform'] == 'windows':
         MLPERF_CLASSES = ['Airplane', 'Antelope', 'Apple', 'Backpack', 'Balloon', 'Banana',
@@ -58,7 +59,7 @@ def preprocess(i):
             if x != '':
                 x += ' '
             x += '"' + v + '"'
-        env['CM_DATASET_OPENIMAGES_CLASSES'] = x
+        env['MLC_DATASET_OPENIMAGES_CLASSES'] = x
 
     return {'return': 0}
 
@@ -66,36 +67,36 @@ def preprocess(i):
 def postprocess(i):
     env = i['env']
 
-    env['CM_DATASET_ANNOTATIONS_DIR_PATH'] = os.path.join(
+    env['MLC_DATASET_ANNOTATIONS_DIR_PATH'] = os.path.join(
         os.getcwd(), 'install', 'annotations')
 
-    if env.get('CM_DATASET_CALIBRATION', '') == "no":
-        env['CM_DATASET_PATH_ROOT'] = os.path.join(os.getcwd(), 'install')
-        env['CM_DATASET_PATH'] = os.path.join(
+    if is_false(env.get('MLC_DATASET_CALIBRATION', '')):
+        env['MLC_DATASET_PATH_ROOT'] = os.path.join(os.getcwd(), 'install')
+        env['MLC_DATASET_PATH'] = os.path.join(
             os.getcwd(), 'install', 'validation', 'data')
         annotations_file_path = os.path.join(
-            env['CM_DATASET_ANNOTATIONS_DIR_PATH'],
+            env['MLC_DATASET_ANNOTATIONS_DIR_PATH'],
             "openimages-mlperf.json")
-        env['CM_DATASET_VALIDATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
-        env['CM_DATASET_ANNOTATIONS_FILE_PATH'] = annotations_file_path
-        env['CM_DATASET_OPENIMAGES_VALIDATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
-        if env.get("CM_DATASET_OPENIMAGES_CUSTOM_ANNOTATIONS", '') == "yes":
-            annotations_file_src = env['CM_DATASET_OPENIMAGES_ANNOTATIONS_FILE_PATH']
+        env['MLC_DATASET_VALIDATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
+        env['MLC_DATASET_ANNOTATIONS_FILE_PATH'] = annotations_file_path
+        env['MLC_DATASET_OPENIMAGES_VALIDATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
+        if is_true(env.get("MLC_DATASET_OPENIMAGES_CUSTOM_ANNOTATIONS", '')):
+            annotations_file_src = env['MLC_DATASET_OPENIMAGES_ANNOTATIONS_FILE_PATH']
             shutil.copy(
                 annotations_file_src,
-                env['CM_DATASET_ANNOTATIONS_DIR_PATH'])
-        env['CM_DATASET_OPENIMAGES_PATH'] = env['CM_DATASET_PATH']
-        env['CM_DATASET_OPENIMAGES_PATH_ROOT'] = env['CM_DATASET_PATH_ROOT']
+                env['MLC_DATASET_ANNOTATIONS_DIR_PATH'])
+        env['MLC_DATASET_OPENIMAGES_PATH'] = env['MLC_DATASET_PATH']
+        env['MLC_DATASET_OPENIMAGES_PATH_ROOT'] = env['MLC_DATASET_PATH_ROOT']
     else:
-        env['CM_CALIBRATION_DATASET_PATH'] = os.path.join(
+        env['MLC_CALIBRATION_DATASET_PATH'] = os.path.join(
             os.getcwd(), 'install', 'calibration', 'data')
-        env['CM_OPENIMAGES_CALIBRATION_DATASET_PATH'] = os.path.join(
+        env['MLC_OPENIMAGES_CALIBRATION_DATASET_PATH'] = os.path.join(
             os.getcwd(), 'install', 'calibration', 'data')
-        env['CM_CALIBRATION_DATASET_PATH_ROOT'] = os.path.join(
+        env['MLC_CALIBRATION_DATASET_PATH_ROOT'] = os.path.join(
             os.getcwd(), 'install')
         annotations_file_path = os.path.join(
-            env['CM_DATASET_ANNOTATIONS_DIR_PATH'],
+            env['MLC_DATASET_ANNOTATIONS_DIR_PATH'],
             "openimages-calibration-mlperf.json")
-        env['CM_DATASET_CALIBRATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
+        env['MLC_DATASET_CALIBRATION_ANNOTATIONS_FILE_PATH'] = annotations_file_path
 
     return {'return': 0}

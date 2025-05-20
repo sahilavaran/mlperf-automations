@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -8,15 +9,17 @@ def preprocess(i):
 
     env = i['env']
 
-    automation = i['automation']
-    cm = automation.cmind
+    logger = i['automation'].logger
 
-    if env.get('CM_HOST_OS_FLAVOR', '') == 'amzn':
-        env['CM_PACKAGE_TOOL'] = "yum"
+    automation = i['automation']
+    cm = automation.action_object
+
+    if env.get('MLC_HOST_OS_FLAVOR', '') == 'amzn':
+        env['MLC_PACKAGE_TOOL'] = "yum"
         i['run_script_input']['script_name'] = "run-rhel"
 
     # Test (not needed - will be removed)
-    if str(env.get('CM_SKIP_SYS_UTILS', '')).lower() in [True, 'yes', 'on']:
+    if is_true(str(env.get('MLC_SKIP_SYS_UTILS', ''))):
         return {'return': 0, 'skip': True}
 
 
@@ -24,16 +27,16 @@ def preprocess(i):
 # "detect,os"!
 
     if os_info['platform'] == 'windows':
-        print('')
-        print('This script is not used on Windows')
-        print('')
+        logger.info('')
+        logger.warning('This script is not used on Windows')
+        logger.info('')
 
    # If windows, download here otherwise use run.sh
 
 #
 #        path = os.getcwd()
 #
-#        clean_dirs = env.get('CM_CLEAN_DIRS','').strip()
+#        clean_dirs = env.get('MLC_CLEAN_DIRS','').strip()
 #        if clean_dirs!='':
 #            import shutil
 #            for cd in clean_dirs.split(','):
@@ -42,7 +45,7 @@ def preprocess(i):
 #                        print ('Clearning directory {}'.format(cd))
 #                        shutil.rmtree(cd)
 #
-#        url = env['CM_PACKAGE_WIN_URL']
+#        url = env['MLC_PACKAGE_WIN_URL']
 #
 #        urls = [url] if ';' not in url else url.split(';')
 #
@@ -80,10 +83,13 @@ def preprocess(i):
 #        env['+PATH']=[os.path.join(path, 'bin')]
 #
     else:
-        print('')
-        print('***********************************************************************')
-        print('This script will attempt to install minimal system dependencies for CM.')
-        print('Note that you may be asked for your SUDO password ...')
-        print('***********************************************************************')
+        logger.info('')
+        logger.info(
+            '***********************************************************************')
+        logger.info(
+            'This script will attempt to install minimal system dependencies for CM.')
+        logger.info('Note that you may be asked for your SUDO password ...')
+        logger.info(
+            '***********************************************************************')
 
     return {'return': 0}

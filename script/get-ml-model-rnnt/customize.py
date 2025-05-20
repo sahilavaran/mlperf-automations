@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -10,13 +11,15 @@ def preprocess(i):
 
     automation = i['automation']
 
-    cm = automation.cmind
+    logger = automation.logger
+
+    cm = automation.action_object
 
     path = os.getcwd()
 
-    url = env['CM_PACKAGE_URL']
+    url = env['MLC_PACKAGE_URL']
 
-    print('Downloading from {}'.format(url))
+    logger.info('Downloading from {}'.format(url))
 
     r = cm.access({'action': 'download_file',
                    'automation': 'utils,dc2743f8450541e3',
@@ -26,15 +29,15 @@ def preprocess(i):
 
     filename = r['filename']
 
-    if env.get('CM_UNZIP') == "yes":
+    if is_true(env.get('MLC_UNZIP')):
         os.system("unzip " + filename)
-        filename = env['CM_ML_MODEL_FILE']
-        env['CM_ML_MODEL_FILE_WITH_PATH'] = os.path.join(path, filename)
+        filename = env['MLC_ML_MODEL_FILE']
+        env['MLC_ML_MODEL_FILE_WITH_PATH'] = os.path.join(path, filename)
     else:
         # Add to path
-        env['CM_ML_MODEL_FILE'] = filename
-        env['CM_ML_MODEL_FILE_WITH_PATH'] = r['path']
+        env['MLC_ML_MODEL_FILE'] = filename
+        env['MLC_ML_MODEL_FILE_WITH_PATH'] = r['path']
 
-    env['CM_ML_MODEL_PATH'] = path
+    env['MLC_ML_MODEL_PATH'] = path
 
     return {'return': 0}

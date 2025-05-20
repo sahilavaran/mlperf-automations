@@ -1,13 +1,15 @@
 # MLPerf Automations and Scripts
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE.md)
-[![Downloads](https://static.pepy.tech/badge/cm4mlops)](https://pepy.tech/project/cm4mlops)
-[![CM Script Automation Test](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-cm-script-features.yml/badge.svg)](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-cm-script-features.yml)
+[![Downloads](https://static.pepy.tech/badge/mlcflow)](https://pepy.tech/project/mlcflow)
+[![MLC script automation features test](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-mlc-script-features.yml/badge.svg?cache-bust=1)](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-mlc-script-features.yml)
 [![MLPerf Inference ABTF POC Test](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-mlperf-inference-abtf-poc.yml/badge.svg)](https://github.com/mlcommons/mlperf-automations/actions/workflows/test-mlperf-inference-abtf-poc.yml)
 
-Welcome to the **MLPerf Automations and Scripts** repository! This repository provides tools, automations, and scripts to facilitate running MLPerf benchmarks, with a primary focus on **MLPerf Inference benchmarks**.
 
-The automations build upon and extend the powerful [Collective Mind (CM) script automations](https://github.com/mlcommons/cm4mlops/tree/main/automation/script) to streamline benchmarking and workflow processes.
+Welcome to the **MLPerf Automations and Scripts** repository! This repository is your go-to resource for tools, automations, and scripts designed to streamline the execution of **MLPerf benchmarks**—with a strong emphasis on **MLPerf Inference benchmarks**.
+
+Starting **January 2025**, MLPerf automation scripts is powered by [MLCFlow](https://github.com/mlcommons/mlcflow) automation interface. This new and simplified framework replaces the previous [Collective Mind (CM)](https://github.com/mlcommons/ck/tree/master/cm), providing a more robust, efficient, and self-contained solution for benchmarking workflows, making MLPerf automations independent of any external projects. 
+
 
 ---
 
@@ -15,19 +17,14 @@ The automations build upon and extend the powerful [Collective Mind (CM) script 
 - **Automated Benchmarking** – Simplifies running MLPerf Inference benchmarks with minimal manual intervention.
 - **Modular and Extensible** – Easily extend the scripts to support additional benchmarks and configurations.
 - **Seamless Integration** – Compatible with Docker, cloud environments, and local machines.
-- **Collective Mind (CM) Integration** – Utilizes the CM framework to enhance reproducibility and automation.
 
 ---
 
-## 🧰 Collective Mind (CM) Automations
+## 🧰 MLCFlow (MLC) Automations
 
-The **Collective Mind (CM)** framework is a Python-based package offering both CLI and API support for creating and managing automations. CM automations enhance ML workflows by simplifying complex tasks such as Docker container management and caching.
+Building upon the robust foundation of its predecessor, the Collective Mind (CM) framework, MLCFlow elevates machine learning workflows by simplifying complex tasks such as Docker container management and caching. Written in Python, the mlcflow package offers a versatile interface, supporting both a user-friendly command-line interface (CLI) and a flexible API for effortless automation script management.
 
-### Core Automations
-- **Script Automation** – Automates script execution across different environments.
-- **Cache Management** – Manages reusable cached results to accelerate workflow processes.
-
-Learn more about CM in the [CM4MLOps documentation](https://github.com/mlcommons/cm4mlops).
+At its core, MLCFlow relies on a single powerful automation, the Script, which is extended by two actions: CacheAction and DockerAction. Together, these components provide streamlined functionality to optimize and enhance your ML workflow automation experience.
 
 ---
 
@@ -39,10 +36,17 @@ We welcome contributions from the community! To contribute:
 
 Your contributions help drive the project forward!
 
+
 ---
 
-## 📰 News
-Stay tuned for upcoming updates and announcements.
+## 💬 Join the Discussion  
+Connect with us on the [MLCommons Benchmark Infra Discord channel](https://discord.gg/T9rHVwQFNX) to engage in discussions about **MLCFlow** and **MLPerf Automations**. We’d love to hear your thoughts, questions, and ideas!  
+
+---
+
+## 📰 Stay Updated  
+Keep track of the latest development progress and tasks on our [MLPerf Automations Development Board](https://github.com/orgs/mlcommons/projects/50/views/7?sliceBy%5Bvalue%5D=_noValue).  
+Stay tuned for exciting updates and announcements!  
 
 ---
 
@@ -56,6 +60,7 @@ This project is made possible through the generous support of:
 - [OctoML](https://octoml.ai)
 - [cKnowledge.org](https://cKnowledge.org)
 - [cTuning Foundation](https://cTuning.org)
+- [GATEOverflow](https://gateoverflow.in)
 - [MLCommons](https://mlcommons.org)
 
 We appreciate their contributions and sponsorship!

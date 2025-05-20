@@ -1,5 +1,6 @@
-from cmind import utils
+from mlc import utils
 import os
+from utils import is_true
 
 
 def preprocess(i):
@@ -13,16 +14,16 @@ def preprocess(i):
     automation = i['automation']
 
     cmd = "gh auth login"
-    if env.get('CM_GH_AUTH_TOKEN', '') != '':
+    if env.get('MLC_GH_AUTH_TOKEN', '') != '':
         if os_info['platform'] == 'windows':
             with open("token", "w") as f:
-                f.write(env['CM_GH_AUTH_TOKEN'])
+                f.write(env['MLC_GH_AUTH_TOKEN'])
             cmd = f"{cmd} --with-token < token"
         else:
-            cmd = f" echo {env['CM_GH_AUTH_TOKEN']} | {cmd} --with-token"
+            cmd = f" echo {env['MLC_GH_AUTH_TOKEN']} | {cmd} --with-token"
 
-    env['CM_RUN_CMD'] = cmd
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    env['MLC_RUN_CMD'] = cmd
+    quiet = is_true(env.get('MLC_QUIET', False))
 
     return {'return': 0}
 

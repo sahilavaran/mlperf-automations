@@ -1,7 +1,9 @@
-from cmind import utils
+from mlc import utils
 import os
-import cmind
 import sys
+from utils import *
+import mlc
+import importlib
 
 
 def preprocess(i):
@@ -17,9 +19,13 @@ def preprocess(i):
     adr = i['input'].get('adr')
 
     automation = i['automation']
+    logger = automation.logger
+    # mlc = i['automation'].action_object
+    # cache_action = i['automation'].cache_action
+    cache_action = mlc
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
-    verbose = (env.get('CM_VERBOSE', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
+    verbose = is_true(env.get('MLC_VERBOSE', False))
 
     models_all = {
         "mobilenet": {
@@ -49,18 +55,18 @@ def preprocess(i):
     }
 
     models = {}
-    if env.get('CM_MLPERF_RUN_MOBILENET_V1', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_RUN_MOBILENET_V1', '')):
         models['mobilenet'] = {}
         models['mobilenet']['v1'] = models_all['mobilenet']['v1']
-    elif env.get('CM_MLPERF_RUN_MOBILENET_V2', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_RUN_MOBILENET_V2', '')):
         models['mobilenet'] = {}
         models['mobilenet']['v2'] = models_all['mobilenet']['v2']
-    elif env.get('CM_MLPERF_RUN_MOBILENET_V3', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_RUN_MOBILENET_V3', '')):
         models['mobilenet'] = {}
         models['mobilenet']['v3'] = models_all['mobilenet']['v3']
-    elif env.get('CM_MLPERF_RUN_MOBILENETS', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_RUN_MOBILENETS', '')):
         models['mobilenet'] = models_all['mobilenet']
-    elif env.get('CM_MLPERF_RUN_EFFICIENTNETS', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_RUN_EFFICIENTNETS', '')):
         models['efficientnet'] = models_all['efficientnet']
 
     variation_strings = {}
@@ -89,16 +95,16 @@ def preprocess(i):
                             variation_list.append("_" + k3)
                         variation_strings[t1].append(",".join(variation_list))
 
-    if env.get('CM_MLPERF_SUBMISSION_MODE', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_SUBMISSION_MODE', '')):
         var = "_submission"
         execution_mode = "valid"
-    elif env.get('CM_MLPERF_ACCURACY_MODE', '') == "yes" and env.get('CM_MLPERF_PERFORMANCE_MODE', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_ACCURACY_MODE', '')) and is_true(env.get('MLC_MLPERF_PERFORMANCE_MODE', '')):
         var = "_full,_performance-and-accuracy"
         execution_mode = "valid"
-    elif env.get('CM_MLPERF_ACCURACY_MODE', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_ACCURACY_MODE', '')):
         var = "_full,_accuracy-only"
         execution_mode = "valid"
-    elif env.get('CM_MLPERF_PERFORMANCE_MODE', '') == "yes":
+    elif is_true(env.get('MLC_MLPERF_PERFORMANCE_MODE', '')):
         var = "_full,_performance-only"
         execution_mode = "valid"
     else:
@@ -106,25 +112,33 @@ def preprocess(i):
         execution_mode = "test"
 
     precisions = []
-    if env.get('CM_MLPERF_RUN_FP32', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_RUN_FP32', '')):
         precisions.append("fp32")
-    if env.get('CM_MLPERF_RUN_INT8', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_RUN_INT8', '')):
         precisions.append("uint8")
 
     implementation_tags = []
-    if env.get('CM_MLPERF_USE_ARMNN_LIBRARY', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_USE_ARMNN_LIBRARY', '')):
         implementation_tags.append("_armnn")
-    if env.get('CM_MLPERF_TFLITE_ARMNN_NEON', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_TFLITE_ARMNN_NEON', '')):
         implementation_tags.append("_use-neon")
-    if env.get('CM_MLPERF_TFLITE_ARMNN_OPENCL', '') == "yes":
+    if is_true(env.get('MLC_MLPERF_TFLITE_ARMNN_OPENCL', '')):
         implementation_tags.append("_use-opencl")
     implementation_tags_string = ",".join(implementation_tags)
 
     inp = i['input']
+    clean_input = {
+        'action': 'rm',
+        'target': 'cache',
+        'tags': 'get,preprocessed,dataset,_for.mobilenet',
+        'quiet': True,
+        'v': verbose,
+        'f': True
+    }
 
-    for model in variation_strings:
-        for v in variation_strings[model]:
-            for precision in precisions:
+    for precision in precisions:
+        for model in variation_strings:
+            for v in variation_strings[model]:
 
                 if "small-minimalistic" in v and precision == "uint8":
                     continue
@@ -132,10 +146,10 @@ def preprocess(i):
                 if model == "efficientnet" and precision == "uint8":
                     precision = "int8"
 
-                cm_input = {
+                mlc_input = {
                     'action': 'run',
-                    'automation': 'script',
-                    'tags': f'generate-run-cmds,mlperf,inference,{var}',
+                    'target': 'script',
+                    'tags': f'run-mlperf,mlperf,inference,{var}',
                     'quiet': True,
                     'env': env,
                     'input': inp,
@@ -157,54 +171,50 @@ def preprocess(i):
                 }
                 if add_deps_recursive:
                     # script automation will merge adr and add_deps_recursive
-                    cm_input['add_deps_recursive'] = add_deps_recursive
+                    mlc_input['add_deps_recursive'] = add_deps_recursive
 
                 if adr:
                     utils.merge_dicts(
-                        {'dict1': cm_input['adr'], 'dict2': adr, 'append_lists': True, 'append_unique': True})
+                        {'dict1': mlc_input['adr'], 'dict2': adr, 'append_lists': True, 'append_unique': True})
 
-                if env.get('CM_MLPERF_INFERENCE_RESULTS_DIR', '') != '':
-                    cm_input['results_dir'] = env['CM_MLPERF_INFERENCE_RESULTS_DIR']
+                if env.get('MLC_MLPERF_INFERENCE_RESULTS_DIR', '') != '':
+                    mlc_input['results_dir'] = env['MLC_MLPERF_INFERENCE_RESULTS_DIR']
 
-                if env.get('CM_MLPERF_INFERENCE_SUBMISSION_DIR', '') != '':
-                    cm_input['submission_dir'] = env['CM_MLPERF_INFERENCE_SUBMISSION_DIR']
+                if env.get('MLC_MLPERF_INFERENCE_SUBMISSION_DIR', '') != '':
+                    mlc_input['submission_dir'] = env['MLC_MLPERF_INFERENCE_SUBMISSION_DIR']
 
-                if env.get('CM_MLPERF_FIND_PERFORMANCE_MODE', '') == "yes" and env.get(
-                        'CM_MLPERF_NO_RERUN', '') != 'yes':
-                    cm_input['rerun'] = True
+                if is_true(env.get('MLC_MLPERF_FIND_PERFORMANCE_MODE', '')) and not is_true(env.get(
+                        'MLC_MLPERF_NO_RERUN', '')):
+                    mlc_input['rerun'] = True
 
-                if env.get('CM_MLPERF_POWER', '') == "yes":
-                    cm_input['power'] = 'yes'
+                if is_true(env.get('MLC_MLPERF_POWER', '')):
+                    mlc_input['power'] = 'yes'
 
-                if env.get('CM_MLPERF_ACCURACY_MODE', '') == "yes":
-                    cm_input['mode'] = 'accuracy'
-                    print(cm_input)
-                    r = cmind.access(cm_input)
+                logger.info(f"{mlc_input}")
+                r = mlc.access(mlc_input)
+                if r['return'] > 0:
+                    return r
+                importlib.reload(mlc.action)
+
+                if is_true(env.get('MLC_MINIMIZE_DISK_USAGE', '')):
+                    r = cache_action.access(clean_input)
                     if r['return'] > 0:
-                        return r
+                        logger.info(f"{r}")
+                    #    return r
+                    else:
+                        importlib.reload(mlc.action)
 
-                if env.get('CM_MLPERF_PERFORMANCE_MODE', '') == "yes":
-                    cm_input['mode'] = 'performance'
-
-                    print(cm_input)
-                    r = cmind.access(cm_input)
-                    if r['return'] > 0:
-                        return r
-
-                if env.get('CM_TEST_ONE_RUN', '') == "yes":
+                if is_true(env.get('MLC_TEST_ONE_RUN', '')):
                     return {'return': 0}
 
-        clean_input = {
-            'action': 'rm',
-            'automation': 'cache',
-            'tags': 'get,preprocessed,dataset,_for.mobilenet',
-                    'quiet': True,
-                    'v': verbose,
-                    'f': 'True'
-        }
-        r = cmind.access(clean_input)
-        # if r['return'] > 0:
-        #    return r
+            '''
+            r = cache_action.access(clean_input)
+            if r['return'] > 0:
+                logger.info(fr)
+                #    return r
+            else:
+                importlib.reload(mlc.action)
+            '''
     return {'return': 0}
 
 

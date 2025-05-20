@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -13,14 +14,14 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
 
     if not state.get(
             'mlperf-inference-implementation'):  # No state information. Just returning
         return {'return': 0}
 
-    if env.get('CM_MLPERF_README', "") == "yes":
-        import cmind as cm
+    if is_true(env.get('MLC_MLPERF_README', "")):
+        import mlc
         inp = i['input']
 
         script_tags = state['mlperf-inference-implementation'].get(
@@ -29,24 +30,24 @@ def preprocess(i):
             'script_adr', {})
 
         if script_tags != '':
-            cm_input = {'action': 'run',
-                        'automation': 'script',
-                        'tags': script_tags,
-                        'adr': script_adr,
-                        'env': env,
-                        'print_deps': True,
-                        'quiet': True,
-                        'silent': True,
-                        'fake_run': True
-                        }
+            mlc_input = {'action': 'run',
+                         'automation': 'script',
+                         'tags': script_tags,
+                         'adr': script_adr,
+                         'env': env,
+                         'print_deps': True,
+                         'quiet': True,
+                         'silent': True,
+                         'fake_run': True
+                         }
 
-            r = cm.access(cm_input)
+            r = mlc.access(mlc_input)
             if r['return'] > 0:
                 return r
 
             state['mlperf-inference-implementation']['print_deps'] = r['new_state']['print_deps']
 
-    if env.get('CM_DUMP_VERSION_INFO', True):
+    if env.get('MLC_DUMP_VERSION_INFO', True):
 
         if state['mlperf-inference-implementation'].get('script_id', '') == '':
             state['mlperf-inference-implementation']['script_id'] = ''

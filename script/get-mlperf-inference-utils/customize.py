@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 import sys
 
@@ -13,14 +14,14 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
 
-    utils_path = env['CM_TMP_CURRENT_SCRIPT_PATH']
+    utils_path = env['MLC_TMP_CURRENT_SCRIPT_PATH']
 
     env['+PYTHONPATH'] = [utils_path]
 
     submission_checker_dir = os.path.join(
-        env['CM_MLPERF_INFERENCE_SOURCE'], "tools", "submission")
+        env['MLC_MLPERF_INFERENCE_SOURCE'], "tools", "submission")
 
     sys.path.append(submission_checker_dir)
     sys.path.append(utils_path)

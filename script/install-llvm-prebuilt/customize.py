@@ -1,4 +1,4 @@
-from cmind import utils
+from utils import *
 import os
 
 
@@ -10,24 +10,26 @@ def preprocess(i):
 
     automation = i['automation']
 
+    logger = automation.logger
+
     recursion_spaces = i['recursion_spaces']
 
-    need_version = env.get('CM_VERSION', '')
+    need_version = env.get('MLC_VERSION', '')
     clang_file_name = "clang"
     if need_version == '':
         return {'return': 1,
-                'error': 'internal problem - CM_VERSION is not defined in env'}
+                'error': 'internal problem - MLC_VERSION is not defined in env'}
 
-    print(recursion_spaces + '    # Requested version: {}'.format(need_version))
+    logger.info(f"{recursion_spaces}    # Requested version: {need_version}")
 
-    host_os_bits = env['CM_HOST_OS_BITS']
+    host_os_bits = env['MLC_HOST_OS_BITS']
 
     if os_info['platform'] != 'windows':
-        host_os_machine = env['CM_HOST_OS_MACHINE']  # ABI
+        host_os_machine = env['MLC_HOST_OS_MACHINE']  # ABI
 
     # Prepare package name
     # First check if it is forced by external environment
-    package_name = env.get('CM_LLVM_PACKAGE', '').strip()
+    package_name = env.get('MLC_LLVM_PACKAGE', '').strip()
     if package_name == '':
         need_version_split = need_version.split('.')
 
@@ -35,12 +37,12 @@ def preprocess(i):
         # and arch
         if os_info['platform'] == 'darwin':
             force_arch = env.get(
-                'CM_LLVM_PACKAGE_FORCE_ARCH',
+                'MLC_LLVM_PACKAGE_FORCE_ARCH',
                 '')  # To allow x86_64 if needed
             if force_arch == '':
                 force_arch = 'arm64'
             force_darwin_version = env.get(
-                'CM_LLVM_PACKAGE_FORCE_DARWIN_VERSION', '')
+                'MLC_LLVM_PACKAGE_FORCE_DARWIN_VERSION', '')
             if force_darwin_version == '':
                 if len(need_version_split) > 0:
                     hver = 0
@@ -60,12 +62,14 @@ def preprocess(i):
             package_name = 'LLVM-' + need_version + '-win' + host_os_bits + '.exe'
             clang_file_name = "clang.exe"
 
-            print('')
-            print('WARNING: Please copy the following path and then paste it')
-            print('         when LLVM installer asks you about the "Destination Folder":')
-            print('')
-            print(os.getcwd())
-            print('')
+            logger.info('')
+            logger.warning(
+                'WARNING: Please copy the following path and then paste it')
+            logger.info(
+                '         when LLVM installer asks you about the "Destination Folder":')
+            logger.info('')
+            logger.info(fos.getcwd())
+            logger.info('')
             input('Press Enter to continue!')
 
         else:
@@ -76,9 +80,9 @@ def preprocess(i):
                 else:
                     package_name = 'clang+llvm-' + need_version + '-armv7a-linux-gnueabihf.tar.xz'
             else:
-                host_os_flavor = env['CM_HOST_OS_FLAVOR']
+                host_os_flavor = env['MLC_HOST_OS_FLAVOR']
 
-                host_os_version = env['CM_HOST_OS_VERSION']
+                host_os_version = env['MLC_HOST_OS_VERSION']
 
 #              if 'debian' in host_os_flavor:
 #                  return {'return':1, 'error':'debian is not supported yet'}
@@ -164,31 +168,34 @@ def preprocess(i):
     package_url = 'https://github.com/llvm/llvm-project/releases/download/llvmorg-' + \
         need_version + '/' + package_name
 
-    print(recursion_spaces + '    # Prepared package URL: {}'.format(package_url))
+    logger.info(f"{recursion_spaces}    # Prepared package URL: {package_url}")
 
-    print('')
-    print('Downloading from {} ...'.format(package_url))
+    logger.info('')
+    logger.info(f"Downloading from {package_url} ...")
 
-    cm = automation.cmind
+    cm = automation.action_object
 
+    r = download_file({'url': package_url})
+    '''
     r = cm.access({'action': 'download_file',
                    'automation': 'utils,dc2743f8450541e3',
                    'url': package_url})
+    '''
     if r['return'] > 0:
         return r
 
     # 'clang+llvm-12.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz' # f['filename']
     filename = r['filename']
 
-    env['CM_LLVM_PACKAGE'] = filename
-    env['CM_LLVM_INSTALLED_PATH'] = os.path.join(os.getcwd(), 'bin')
-    env['CM_LLVM_CLANG_BIN_WITH_PATH'] = os.path.join(
+    env['MLC_LLVM_PACKAGE'] = filename
+    env['MLC_LLVM_INSTALLED_PATH'] = os.path.join(os.getcwd(), 'bin')
+    env['MLC_LLVM_CLANG_BIN_WITH_PATH'] = os.path.join(
         os.getcwd(), 'bin', clang_file_name)
-    env['CM_GET_DEPENDENT_CACHED_PATH'] = env['CM_LLVM_CLANG_BIN_WITH_PATH']
+    env['MLC_GET_DEPENDENT_CACHED_PATH'] = env['MLC_LLVM_CLANG_BIN_WITH_PATH']
 
     # We don't need to check default paths here because we force install to
     # cache
-    env['+PATH'] = [env['CM_LLVM_INSTALLED_PATH']]
+    env['+PATH'] = [env['MLC_LLVM_INSTALLED_PATH']]
 
     path_include = os.path.join(os.getcwd(), 'include')
     if os.path.isdir(path_include):
@@ -200,7 +207,7 @@ def preprocess(i):
 def postprocess(i):
 
     env = i['env']
-    version = env['CM_VERSION']
+    version = env['MLC_VERSION']
     os_info = i['os_info']
 
 #    cur_dir = os.getcwd()

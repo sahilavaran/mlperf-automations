@@ -1,4 +1,4 @@
-from cmind import utils
+from mlc import utils
 import os
 import shutil
 # used to measure the system infos(have not tested for obtaining gpu info)
@@ -36,21 +36,23 @@ def preprocess(i):
         return {'return': 1, 'error': 'Windows is not supported in this script yet'}
 
     env = i['env']
+    logger = i['automation'].logger
 
-    if env.get("CM_RUN_DIR", "") == "":
-        env['CM_RUN_DIR'] = os.getcwd()
+    if env.get("MLC_RUN_DIR", "") == "":
+        env['MLC_RUN_DIR'] = os.getcwd()
 
-    logs_dir = env.get('CM_LOGS_DIR', env['CM_RUN_DIR'])
+    logs_dir = env.get('MLC_LOGS_DIR', env['MLC_RUN_DIR'])
 
     log_json_file_path = os.path.join(logs_dir, 'sys_utilisation_info.txt')
 
-    interval = int(env.get('CM_SYSTEM_INFO_MEASUREMENT_INTERVAL', '2'))
+    interval = int(env.get('MLC_SYSTEM_INFO_MEASUREMENT_INTERVAL', '2'))
 
-    print(f"The system dumps are created to the folder:{logs_dir}")
+    logger.info(f"The system dumps are created to the folder:{logs_dir}")
 
-    print("WARNING: Currently the script is in its development stage. Only memory measurements supports as of now!")
+    logger.warning(
+        "Currently the script is in its development stage. Only memory measurements supports as of now!")
 
-    print("Started measuring system info!")
+    logger.info("Started measuring system info!")
 
     csv_headers = [
         'timestamp',

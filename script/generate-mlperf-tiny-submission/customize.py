@@ -1,4 +1,4 @@
-from cmind import utils
+from mlc import utils
 import os
 import json
 import shutil
@@ -17,16 +17,17 @@ def generate_submission(i):
     env = i['env']
     state = i['state']
     inp = i['input']
-    results_dir = env['CM_MLPERF_RESULTS_DIR']
+    logger = i['automation'].logger
+    results_dir = env['MLC_MLPERF_RESULTS_DIR']
 
-    if 'CM_MLPERF_SUBMISSION_DIR' not in env:
-        env['CM_MLPERF_SUBMISSION_DIR'] = os.path.join(cur_dir, "results")
-    submission_dir = env['CM_MLPERF_SUBMISSION_DIR']
+    if 'MLC_MLPERF_SUBMISSION_DIR' not in env:
+        env['MLC_MLPERF_SUBMISSION_DIR'] = os.path.join(cur_dir, "results")
+    submission_dir = env['MLC_MLPERF_SUBMISSION_DIR']
     if not os.path.isdir(submission_dir):
         os.makedirs(submission_dir)
 
-    print('* MLPerf tiny submission dir: {}'.format(submission_dir))
-    print('* MLPerf tiny results dir: {}'.format(results_dir))
+    logger.info('* MLPerf tiny submission dir: {}'.format(submission_dir))
+    logger.info('* MLPerf tiny results dir: {}'.format(results_dir))
     results = [
         f for f in os.listdir(results_dir) if not os.path.isfile(
             os.path.join(
@@ -37,10 +38,10 @@ def generate_submission(i):
 
     if division not in ['open', 'closed']:
         return {'return': 1, 'error': '"division" must be "open" or "closed"'}
-    system_meta = state['CM_SUT_META']
+    system_meta = state['MLC_SUT_META']
     division = system_meta['division']
 
-    print('* MLPerf tiny division: {}'.format(division))
+    logger.info('* MLPerf tiny division: {}'.format(division))
 
     path_submission_root = submission_dir
     path_submission_division = os.path.join(path_submission_root, division)
@@ -49,9 +50,9 @@ def generate_submission(i):
 
     # Check submitter
     submitter = system_meta['submitter']
-    env['CM_MLPERF_SUBMITTER'] = submitter
+    env['MLC_MLPERF_SUBMITTER'] = submitter
 
-    print('* MLPerf tiny submitter: {}'.format(submitter))
+    logger.info('* MLPerf tiny submitter: {}'.format(submitter))
 
     path_submission = os.path.join(path_submission_division, submitter)
     if not os.path.isdir(path_submission):
@@ -67,8 +68,8 @@ def generate_submission(i):
         target = parts[1]
         framework = backend
 
-        print('* Target: {}'.format(target))
-        print('* Framework: {}'.format(framework))
+        logger.info('* Target: {}'.format(target))
+        logger.info('* Framework: {}'.format(framework))
         result_path = os.path.join(results_dir, res)
         platform_prefix = inp.get('platform_prefix', '')
         if platform_prefix:
@@ -109,7 +110,7 @@ def generate_submission(i):
                 with open(os.path.join(submission_code_path, "README.md"), mode='w'):
                     pass  # create an empty README
 
-            print('* MLPerf inference model: {}'.format(model))
+            logger.info('* MLPerf inference model: {}'.format(model))
             for scenario in scenarios:
                 result_scenario_path = os.path.join(
                     result_model_path, scenario)
@@ -181,7 +182,7 @@ def generate_submission(i):
                             files.append("accuracy.txt")
 
                     for f in files:
-                        print(' * ' + f)
+                        logger.info(' * ' + f)
                         p_target = os.path.join(submission_results_path, f)
                         shutil.copy(
                             os.path.join(

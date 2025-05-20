@@ -1,4 +1,4 @@
-from cmind import utils
+from mlc import utils
 import os
 
 
@@ -13,19 +13,15 @@ def preprocess(i):
 
     automation = i['automation']
 
+    logger = automation.logger
+
     recursion_spaces = i['recursion_spaces']
 
-    need_version = env.get('CM_VERSION', '')
+    need_version = env.get('MLC_VERSION', '')
     if need_version == '':
         return {'return': 1,
-                'error': 'internal problem - CM_VERSION is not defined in env'}
+                'error': 'internal problem - MLC_VERSION is not defined in env'}
 
-    print(recursion_spaces + '    # Requested version: {}'.format(need_version))
+    logger.info(f"{recursion_spaces}    # Requested version: {need_version}")
 
-    return {'return': 0}
-
-
-def postprocess(i):
-    inp = i['input']
-    env = i['env']
     return {'return': 0}

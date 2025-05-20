@@ -1,4 +1,6 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
+
 import os
 
 
@@ -12,9 +14,9 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
 
-    name = env.get('CM_NAME', '')
+    name = env.get('MLC_NAME', '')
     if name != '':
         name = name.strip().lower()
 

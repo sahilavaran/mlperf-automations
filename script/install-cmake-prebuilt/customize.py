@@ -1,5 +1,6 @@
-from cmind import utils
+from mlc import utils
 import os
+from utils import download_file, unzip_file
 
 
 def preprocess(i):
@@ -10,14 +11,16 @@ def preprocess(i):
 
     automation = i['automation']
 
+    logger = automation.logger
+
     recursion_spaces = i['recursion_spaces']
 
-    need_version = env.get('CM_VERSION', '')
+    need_version = env.get('MLC_VERSION', '')
     if need_version == '':
         return {'return': 1,
-                'error': 'internal problem - CM_VERSION is not defined in env'}
+                'error': 'internal problem - MLC_VERSION is not defined in env'}
 
-    print(recursion_spaces + '    # Requested version: {}'.format(need_version))
+    logger.info(f"{recursion_spaces}    # Requested version: {need_version}")
 
     version_split = need_version.split(".")
     while len(version_split) < 3:
@@ -25,10 +28,10 @@ def preprocess(i):
 
     need_version = ".".join(version_split)
 
-    host_os_bits = env['CM_HOST_OS_BITS']
+    host_os_bits = env['MLC_HOST_OS_BITS']
 
     if os_info['platform'] != 'windows':
-        host_os_machine = env['CM_HOST_OS_MACHINE']  # ABI
+        host_os_machine = env['MLC_HOST_OS_MACHINE']  # ABI
 
     # Prepare package name
     if os_info['platform'] == 'darwin':
@@ -65,16 +68,13 @@ def preprocess(i):
     package_url = 'https://github.com/Kitware/CMake/releases/download/v' + \
         need_version + '/' + package_name
 
-    print(recursion_spaces + '    # Prepared package URL: {}'.format(package_url))
+    logger.info(f"{recursion_spaces}    # Prepared package URL: {package_url}")
 
-    print('')
-    print('Downloading from {} ...'.format(package_url))
+    logger.info('')
+    logger.info(f"Downloading from {package_url} ...")
 
-    cm = automation.cmind
-
-    r = cm.access({'action': 'download_file',
-                   'automation': 'utils,dc2743f8450541e3',
-                   'url': package_url})
+    r = download_file({
+        'url': package_url})
     if r['return'] > 0:
         return r
 
@@ -82,17 +82,16 @@ def preprocess(i):
 
     # Check what to do with this file depending on OS
     if os_info['platform'] == 'windows':
-        print('Unzipping file {}'.format(filename))
+        logger.info(f"Unzipping file {filename}")
 
-        r = cm.access({'action': 'unzip_file',
-                       'automation': 'utils,dc2743f8450541e3',
-                       'strip_folders': 1,
-                       'filename': filename})
+        r = unzip_file({
+            'strip_folders': 1,
+            'filename': filename})
         if r['return'] > 0:
             return r
 
         if os.path.isfile(filename):
-            print('Removing file {}'.format(filename))
+            logger.info(f"Removing file {filename}")
             os.remove(filename)
 
         path_bin = os.path.join(os.getcwd(), 'bin')
@@ -105,18 +104,18 @@ def preprocess(i):
         path_bin = os.path.join(os.getcwd(), 'bin')
         path_include = os.path.join(os.getcwd(), 'include')
 
-    env['CM_CMAKE_PACKAGE'] = filename
+    env['MLC_CMAKE_PACKAGE'] = filename
 
-    env['CM_CMAKE_INSTALLED_PATH'] = path_bin
-    env['CM_GET_DEPENDENT_CACHED_PATH'] = os.getcwd()
+    env['MLC_CMAKE_INSTALLED_PATH'] = path_bin
+    env['MLC_GET_DEPENDENT_CACHED_PATH'] = os.getcwd()
 
     bin_name = 'cmake.exe' if os_info['platform'] == 'windows' else 'cmake'
 
-    env['CM_CMAKE_BIN_WITH_PATH'] = os.path.join(path_bin, bin_name)
+    env['MLC_CMAKE_BIN_WITH_PATH'] = os.path.join(path_bin, bin_name)
 
     # We don't need to check default paths here because we force install to
     # cache
-    env['+PATH'] = [env['CM_CMAKE_INSTALLED_PATH']]
+    env['+PATH'] = [env['MLC_CMAKE_INSTALLED_PATH']]
 
     if os.path.isdir(path_include):
         env['+C_INCLUDE_PATH'] = [path_include]

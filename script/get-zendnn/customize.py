@@ -1,5 +1,6 @@
-from cmind import utils
+from mlc import utils
 import os
+from utils import is_true
 
 
 def preprocess(i):
@@ -12,12 +13,12 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
 
-    env['ZENDNN_BLIS_PATH'] = env['CM_BLIS_INSTALL_PATH']
-    env['ZENDNN_LIBM_PATH'] = env['CM_AOCL_BUILD_PATH']
+    env['ZENDNN_BLIS_PATH'] = env['MLC_BLIS_INSTALL_PATH']
+    env['ZENDNN_LIBM_PATH'] = env['MLC_AOCL_BUILD_PATH']
 
-    env['ZENDNN_SRC_PATH'] = env['CM_GIT_REPO_CHECKOUT_PATH']
+    env['ZENDNN_SRC_PATH'] = env['MLC_GIT_REPO_CHECKOUT_PATH']
 
     return {'return': 0}
 

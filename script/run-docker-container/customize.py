@@ -1,9 +1,9 @@
-from cmind import utils
-import cmind as cm
+from mlc import utils
 import os
 import subprocess
 from os.path import exists
 import json
+from utils import *
 
 
 def preprocess(i):
@@ -12,53 +12,59 @@ def preprocess(i):
 
     env = i['env']
 
-    interactive = env.get('CM_DOCKER_INTERACTIVE_MODE', '')
+    mlc = i['automation'].action_object
 
-    if str(interactive).lower() in ['yes', 'true', '1']:
-        env['CM_DOCKER_DETACHED_MODE'] = 'no'
+    logger = i['automation'].logger
 
-    if 'CM_DOCKER_RUN_SCRIPT_TAGS' not in env:
-        env['CM_DOCKER_RUN_SCRIPT_TAGS'] = "run,docker,container"
-        CM_RUN_CMD = "cm version"
+    interactive = env.get('MLC_DOCKER_INTERACTIVE_MODE', '')
+
+    if is_true(interactive):
+        env['MLC_DOCKER_DETACHED_MODE'] = 'no'
+
+    if 'MLC_DOCKER_RUN_SCRIPT_TAGS' not in env:
+        env['MLC_DOCKER_RUN_SCRIPT_TAGS'] = "run,docker,container"
+        MLC_RUN_CMD = "mlc version"
     else:
-        CM_RUN_CMD = "cm run script --tags=" + \
-            env['CM_DOCKER_RUN_SCRIPT_TAGS'] + ' --quiet'
+        MLC_RUN_CMD = "mlcr " + \
+            env['MLC_DOCKER_RUN_SCRIPT_TAGS'] + ' --quiet'
 
-    r = cm.access({'action': 'search',
+    r = mlc.access({'action': 'search',
                    'automation': 'script',
-                   'tags': env['CM_DOCKER_RUN_SCRIPT_TAGS']})
+                    'tags': env['MLC_DOCKER_RUN_SCRIPT_TAGS']})
     if len(r['list']) < 1:
         raise Exception(
             'CM script with tags ' +
-            env['CM_DOCKER_RUN_SCRIPT_TAGS'] +
+            env['MLC_DOCKER_RUN_SCRIPT_TAGS'] +
             ' not found!')
 
     PATH = r['list'][0].path
     os.chdir(PATH)
 
-    env['CM_DOCKER_RUN_CMD'] = CM_RUN_CMD
+    env['MLC_DOCKER_RUN_CMD'] = MLC_RUN_CMD
 
     # Updating Docker info
     update_docker_info(env)
 
-    docker_image_repo = env['CM_DOCKER_IMAGE_REPO']
-    docker_image_base = env['CM_DOCKER_IMAGE_BASE']
-    docker_image_name = env['CM_DOCKER_IMAGE_NAME']
-    docker_image_tag = env['CM_DOCKER_IMAGE_TAG']
+    docker_image_repo = env['MLC_DOCKER_IMAGE_REPO']
+    docker_image_base = env['MLC_DOCKER_IMAGE_BASE']
+    docker_image_name = env['MLC_DOCKER_IMAGE_NAME']
+    docker_image_tag = env['MLC_DOCKER_IMAGE_TAG']
 
     DOCKER_CONTAINER = docker_image_repo + "/" + \
         docker_image_name + ":" + docker_image_tag
 
-    print('')
-    print('Checking existing Docker container:')
-    print('')
-    CMD = f"""{env['CM_CONTAINER_TOOL']} ps --format=json  --filter "ancestor={DOCKER_CONTAINER}" """
+    logger.info('')
+    logger.info('Checking existing Docker container:')
+    logger.info('')
+    # CMD = f"""{env['MLC_CONTAINER_TOOL']} ps --format=json  --filter "ancestor={DOCKER_CONTAINER}" """
+    CMD = f"""{env['MLC_CONTAINER_TOOL']} ps --format """ + \
+        '"{{ .ID }},"' + f"""  --filter "ancestor={DOCKER_CONTAINER}" """
     if os_info['platform'] == 'windows':
         CMD += " 2> nul"
     else:
         CMD += " 2> /dev/null"
-    print('  ' + CMD)
-    print('')
+    logger.info('  ' + CMD)
+    logger.info('')
 
     try:
         out = subprocess.check_output(
@@ -69,42 +75,38 @@ def preprocess(i):
             'error': 'Unexpected error occurred with docker run:\n{}'.format(e)
         }
 
-    if len(out) > 0 and str(env.get('CM_DOCKER_REUSE_EXISTING_CONTAINER',
-                                    '')).lower() in ["1", "true", "yes"]:  # container exists
-        # print(out)
-        out_split = out.splitlines()
+    existing_container_id = None
+    if len(out) > 0:
+        out_split = out.split(",")
         if len(out_split) > 0:
-            try:
-                out_json = json.loads(out_split[0])
-                # print("JSON successfully loaded:", out_json)
-            except json.JSONDecodeError as e:
-                print(f"Error: First line of 'out' is not valid JSON: {e}")
-                return {
-                    'return': 1, 'error': f"Error: First line of 'out' is not valid JSON: {e}"}
-    else:
-        out_json = []
+            existing_container_id = out_split[0].strip()
 
-    if isinstance(out_json, list) and len(out_json) > 0:
-        existing_container_id = out_json[0]['Id']
-        print(f"Reusing existing container {existing_container_id}")
-        env['CM_DOCKER_CONTAINER_ID'] = existing_container_id
+    if existing_container_id and is_true(
+            env.get('MLC_DOCKER_REUSE_EXISTING_CONTAINER', '')):
+        logger.info(f"Reusing existing container {existing_container_id}")
+        env['MLC_DOCKER_CONTAINER_ID'] = existing_container_id
 
     else:
-        if env.get('CM_DOCKER_CONTAINER_ID', '') != '':
-            del (env['CM_DOCKER_CONTAINER_ID'])  # not valid ID
+        if existing_container_id:
+            print(
+                f"""Not using existing container {existing_container_id} as env['MLC_DOCKER_REUSE_EXISTING_CONTAINER'] is not set""")
+        else:
+            logger.info("No existing container")
+        if env.get('MLC_DOCKER_CONTAINER_ID', '') != '':
+            del (env['MLC_DOCKER_CONTAINER_ID'])  # not valid ID
 
-        CMD = f"""{env['CM_CONTAINER_TOOL']} images -q """ + DOCKER_CONTAINER
+        CMD = f"""{env['MLC_CONTAINER_TOOL']} images -q """ + DOCKER_CONTAINER
 
         if os_info['platform'] == 'windows':
             CMD += " 2> nul"
         else:
             CMD += " 2> /dev/null"
 
-        print('')
-        print('Checking Docker images:')
-        print('')
-        print('  ' + CMD)
-        print('')
+        logger.info('')
+        logger.info('Checking Docker images:')
+        logger.info('')
+        logger.info('  ' + CMD)
+        logger.info('')
 
         try:
             docker_image = subprocess.check_output(
@@ -113,16 +115,15 @@ def preprocess(i):
             return {
                 'return': 1, 'error': 'Docker is either not installed or not started:\n{}'.format(e)}
 
-        recreate_image = env.get('CM_DOCKER_IMAGE_RECREATE', '')
+        recreate_image = env.get('MLC_DOCKER_IMAGE_RECREATE', '')
 
-        if recreate_image != 'yes':
+        if is_false(recreate_image):
             if docker_image:
-                print("Docker image exists with ID: " + docker_image)
-                env['CM_DOCKER_IMAGE_EXISTS'] = "yes"
+                logger.info("Docker image exists with ID: " + docker_image)
+                env['MLC_DOCKER_IMAGE_EXISTS'] = "yes"
 
     #    elif recreate_image == "yes":
-    #        env['CM_DOCKER_IMAGE_RECREATE'] = "no"
-
+    #        env['MLC_DOCKER_IMAGE_RECREATE'] = "no"
     return {'return': 0}
 
 
@@ -132,13 +133,15 @@ def postprocess(i):
 
     env = i['env']
 
+    logger = i['automation'].logger
+
     # Updating Docker info
     update_docker_info(env)
 
-    docker_image_repo = env['CM_DOCKER_IMAGE_REPO']
-    docker_image_base = env['CM_DOCKER_IMAGE_BASE']
-    docker_image_name = env['CM_DOCKER_IMAGE_NAME']
-    docker_image_tag = env['CM_DOCKER_IMAGE_TAG']
+    docker_image_repo = env['MLC_DOCKER_IMAGE_REPO']
+    docker_image_base = env['MLC_DOCKER_IMAGE_BASE']
+    docker_image_name = env['MLC_DOCKER_IMAGE_NAME']
+    docker_image_tag = env['MLC_DOCKER_IMAGE_TAG']
 
     run_cmds = []
     mount_cmds = []
@@ -147,54 +150,58 @@ def postprocess(i):
 
     # not completed as su command breaks the execution sequence
     #
-    # if env.get('CM_DOCKER_PASS_USER_ID', '') != '':
+    # if env.get('MLC_DOCKER_PASS_USER_ID', '') != '':
     #    run_opts += " --user 0 "
     #    run_cmds.append(f"(usermod -u {os.getuid()} cmuser || echo pass)")
     #    run_cmds.append(f"(chown -R {os.getuid()}:{os.getuid()} /home/cmuser  || echo pass)")
     #    run_cmds.append(" ( su cmuser )")
     #    run_cmds.append('export PATH="/home/cmuser/venv/cm/bin:$PATH"')
 
-    if env.get('CM_DOCKER_PRE_RUN_COMMANDS', []):
-        for pre_run_cmd in env['CM_DOCKER_PRE_RUN_COMMANDS']:
+    if env.get('MLC_DOCKER_PRE_RUN_COMMANDS', []):
+        for pre_run_cmd in env['MLC_DOCKER_PRE_RUN_COMMANDS']:
             run_cmds.append(pre_run_cmd)
 
-    if env.get('CM_DOCKER_VOLUME_MOUNTS', []):
-        for mounts in env['CM_DOCKER_VOLUME_MOUNTS']:
+    if env.get('MLC_DOCKER_VOLUME_MOUNTS', []):
+        for mounts in env['MLC_DOCKER_VOLUME_MOUNTS']:
             mount_cmds.append(mounts)
 
-    if env.get('CM_DOCKER_PASS_USER_GROUP', '') != '':
+    if env.get('MLC_DOCKER_PASS_USER_GROUP',
+               '') != '' and os_info['platform'] != 'windows':
         run_opts += " --group-add $(id -g $USER) "
 
-    if env.get('CM_DOCKER_ADD_DEVICE', '') != '':
-        run_opts += " --device=" + env['CM_DOCKER_ADD_DEVICE']
+    if env.get('MLC_DOCKER_ADD_DEVICE', '') != '':
+        run_opts += " --device=" + env['MLC_DOCKER_ADD_DEVICE']
 
-    if env.get('CM_DOCKER_PRIVILEGED_MODE', '') == 'yes':
+    if is_true(env.get('MLC_DOCKER_PRIVILEGED_MODE', '')):
         run_opts += " --privileged "
 
-    if env.get('CM_DOCKER_ADD_NUM_GPUS', '') != '':
-        run_opts += " --gpus={}".format(env['CM_DOCKER_ADD_NUM_GPUS'])
-    elif env.get('CM_DOCKER_ADD_ALL_GPUS', '') != '':
+    if env.get('MLC_DOCKER_ADD_NUM_GPUS', '') != '':
+        run_opts += " --gpus={}".format(env['MLC_DOCKER_ADD_NUM_GPUS'])
+    elif env.get('MLC_DOCKER_ADD_ALL_GPUS', '') != '':
         run_opts += " --gpus=all"
 
-    if env.get('CM_DOCKER_SHM_SIZE', '') != '':
-        run_opts += " --shm-size={}".format(env['CM_DOCKER_SHM_SIZE'])
+    if env.get('MLC_DOCKER_SHM_SIZE', '') != '':
+        run_opts += " --shm-size={}".format(env['MLC_DOCKER_SHM_SIZE'])
 
-    if env.get('CM_DOCKER_EXTRA_RUN_ARGS', '') != '':
-        run_opts += env['CM_DOCKER_EXTRA_RUN_ARGS']
+    if env.get('MLC_DOCKER_EXTRA_RUN_ARGS', '') != '':
+        run_opts += env['MLC_DOCKER_EXTRA_RUN_ARGS']
 
-    if env.get('CM_CONTAINER_TOOL', '') == 'podman' and env.get(
-            'CM_PODMAN_MAP_USER_ID', '').lower() not in ["no", "0", "false"]:
+    if is_true(env.get('MLC_DOCKER_USE_GOOGLE_DNS', '')):
+        run_opts += ' --dns 8.8.8.8 --dns 8.8.4.4 '
+
+    if env.get('MLC_CONTAINER_TOOL', '') == 'podman' and not is_false(env.get(
+            'MLC_PODMAN_MAP_USER_ID', '')):
         run_opts += " --userns=keep-id"
 
-    if env.get('CM_DOCKER_PORT_MAPS', []):
-        for ports in env['CM_DOCKER_PORT_MAPS']:
+    if env.get('MLC_DOCKER_PORT_MAPS', []):
+        for ports in env['MLC_DOCKER_PORT_MAPS']:
             port_map_cmds.append(ports)
 
-    run_cmd = env['CM_DOCKER_RUN_CMD'] + " " + \
-        env.get('CM_DOCKER_RUN_CMD_EXTRA', '').replace(":", "=")
+    run_cmd = env['MLC_DOCKER_RUN_CMD'] + " " + \
+        env.get('MLC_DOCKER_RUN_CMD_EXTRA', '').replace(":", "=")
     run_cmds.append(run_cmd)
-    if 'CM_DOCKER_POST_RUN_COMMANDS' in env:
-        for post_run_cmd in env['CM_DOCKER_POST_RUN_COMMANDS']:
+    if 'MLC_DOCKER_POST_RUN_COMMANDS' in env:
+        for post_run_cmd in env['MLC_DOCKER_POST_RUN_COMMANDS']:
             run_cmds.append(post_run_cmd)
 
     run_cmd = " && ".join(run_cmds)
@@ -235,45 +242,39 @@ def postprocess(i):
     run_opts += port_map_cmd_string
 
     # Currently have problem running Docker in detached mode on Windows:
-    detached = str(
-        env.get(
-            'CM_DOCKER_DETACHED_MODE',
-            '')).lower() in [
-        'yes',
-        'true',
-        "1"]
+    detached = is_true(env.get('MLC_DOCKER_DETACHED_MODE', ''))
+
 #    if detached and os_info['platform'] != 'windows':
     if detached:
         if os_info['platform'] == 'windows':
             return {
                 'return': 1, 'error': 'Currently we don\'t support running Docker containers in detached mode on Windows - TBD'}
 
-        existing_container_id = env.get('CM_DOCKER_CONTAINER_ID', '')
+        existing_container_id = env.get('MLC_DOCKER_CONTAINER_ID', '')
         if existing_container_id:
-            CMD = f"""ID={existing_container_id} && {env['CM_CONTAINER_TOOL']} exec $ID bash -c '""" + run_cmd + "'"
+            CMD = f"""ID={existing_container_id} && {env['MLC_CONTAINER_TOOL']} exec $ID bash -c '""" + run_cmd + "'"
         else:
-            CONTAINER = f"""{env['CM_CONTAINER_TOOL']} run -dt {run_opts} --rm  {docker_image_repo}/{docker_image_name}:{docker_image_tag} bash"""
-            CMD = f"""ID=`{CONTAINER}` && {env['CM_CONTAINER_TOOL']} exec $ID bash -c '{run_cmd}'"""
+            CONTAINER = f"""{env['MLC_CONTAINER_TOOL']} run -dt {run_opts} --rm  {docker_image_repo}/{docker_image_name}:{docker_image_tag} bash"""
+            CMD = f"""ID=`{CONTAINER}` && {env['MLC_CONTAINER_TOOL']} exec $ID bash -c '{run_cmd}'"""
 
-            if False and str(env.get('CM_KEEP_DETACHED_CONTAINER', '')).lower() not in [
-                    'yes', "1", 'true']:
-                CMD += f""" && {env['CM_CONTAINER_TOOL']} kill $ID >/dev/null"""
+            if is_true(env.get('MLC_KILL_DETACHED_CONTAINER', False)):
+                CMD += f""" && {env['MLC_CONTAINER_TOOL']} kill $ID >/dev/null"""
 
         CMD += ' && echo "ID=$ID"'
 
-        print('=========================')
-        print("Container launch command:")
-        print('')
-        print(CMD)
-        print('')
+        logger.info('=========================')
+        logger.info("Container launch command:")
+        logger.info('')
+        logger.info(f"{CMD}")
+        logger.info('')
         print(
             "Running " +
             run_cmd +
-            f""" inside {env['CM_CONTAINER_TOOL']} container""")
+            f""" inside {env['MLC_CONTAINER_TOOL']} container""")
 
         record_script({'cmd': CMD, 'env': env})
 
-        print('')
+        logger.info('')
         # Execute the command
         try:
             result = subprocess.run(
@@ -283,17 +284,17 @@ def postprocess(i):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True)
-            print("Command Output:", result.stdout)
+            logger.info("Command Output:", result.stdout)
         except subprocess.CalledProcessError as e:
-            print("Error Occurred!")
-            print(f"Command: {e.cmd}")
-            print(f"Return Code: {e.returncode}")
-            print(f"Error Output: {e.stderr}")
+            logger.error("Error Occurred!")
+            logger.info(f"Command: {e.cmd}")
+            logger.info(f"Return Code: {e.returncode}")
+            logger.error(f"Error Output: {e.stderr}")
             return {'return': 1, 'error': e.stderr}
 
         docker_out = result.stdout
         # if docker_out != 0:
-        # return {'return': docker_out, 'error': f""{env['CM_CONTAINER_TOOL']}
+        # return {'return': docker_out, 'error': f""{env['MLC_CONTAINER_TOOL']}
         # run failed""}
 
         lines = docker_out.split("\n")
@@ -301,9 +302,9 @@ def postprocess(i):
         for line in lines:
             if line.startswith("ID="):
                 ID = line[3:]
-                env['CM_DOCKER_CONTAINER_ID'] = ID
+                env['MLC_DOCKER_CONTAINER_ID'] = ID
 
-        print(docker_out)
+        logger.info(f"{docker_out}")
 
     else:
         x = "'"
@@ -313,29 +314,29 @@ def postprocess(i):
         x1 = ''
         x2 = ''
         run_cmd_prefix = ""
-        if env.get('CM_DOCKER_INTERACTIVE_MODE', '') in ['yes', 'True', True]:
+        if is_true(env.get('MLC_DOCKER_INTERACTIVE_MODE', '')):
             run_cmd_prefix = "("
             x1 = '-it'
             x2 = " && bash ) || bash"
 
-        CONTAINER = f"{env['CM_CONTAINER_TOOL']} run " + x1 + " --entrypoint " + x + x + " " + run_opts + \
+        CONTAINER = f"{env['MLC_CONTAINER_TOOL']} run " + x1 + " --entrypoint " + x + x + " " + run_opts + \
             " " + docker_image_repo + "/" + docker_image_name + ":" + docker_image_tag
         CMD = CONTAINER + " bash -c " + x + run_cmd_prefix + run_cmd + x2 + x
 
-        print('')
-        print("Container launch command:")
-        print('')
-        print(CMD)
+        logger.info('')
+        logger.info("Container launch command:")
+        logger.info('')
+        logger.info(f"{CMD}")
 
         record_script({'cmd': CMD, 'env': env})
 
-        print('')
+        logger.info('')
         docker_out = os.system(CMD)
         if docker_out != 0:
             if docker_out % 256 == 0:
                 docker_out = 1
             return {'return': docker_out,
-                    'error': f"""{env['CM_CONTAINER_TOOL']} run failed"""}
+                    'error': f"""{env['MLC_CONTAINER_TOOL']} run failed"""}
 
     return {'return': 0}
 
@@ -347,12 +348,12 @@ def record_script(i):
 
     files = []
 
-    dockerfile_path = env.get('CM_DOCKERFILE_WITH_PATH', '')
+    dockerfile_path = env.get('MLC_DOCKERFILE_WITH_PATH', '')
     if dockerfile_path != '' and os.path.isfile(dockerfile_path):
         files.append(dockerfile_path + '.run.bat')
         files.append(dockerfile_path + '.run.sh')
 
-    save_script = env.get('CM_DOCKER_SAVE_SCRIPT', '')
+    save_script = env.get('MLC_DOCKER_SAVE_SCRIPT', '')
     if save_script != '':
         if save_script.endswith('.bat') or save_script.endswith('.sh'):
             files.append(save_script)
@@ -370,31 +371,31 @@ def record_script(i):
 def update_docker_info(env):
 
     # Updating Docker info
-    docker_image_repo = env.get('CM_DOCKER_IMAGE_REPO', 'localhost/local')
-    env['CM_DOCKER_IMAGE_REPO'] = docker_image_repo
+    docker_image_repo = env.get('MLC_DOCKER_IMAGE_REPO', 'localhost/local')
+    env['MLC_DOCKER_IMAGE_REPO'] = docker_image_repo
 
-    docker_image_base = env.get('CM_DOCKER_IMAGE_BASE')
+    docker_image_base = env.get('MLC_DOCKER_IMAGE_BASE')
     if not docker_image_base:
-        if env.get("CM_DOCKER_OS", '') != '':
-            docker_image_base = env["CM_DOCKER_OS"] + \
-                ":" + env["CM_DOCKER_OS_VERSION"]
+        if env.get("MLC_DOCKER_OS", '') != '':
+            docker_image_base = env["MLC_DOCKER_OS"] + \
+                ":" + env["MLC_DOCKER_OS_VERSION"]
         else:
             docker_image_base = "ubuntu:22.04"
 
-    env['CM_DOCKER_IMAGE_BASE'] = docker_image_base
+    env['MLC_DOCKER_IMAGE_BASE'] = docker_image_base
 
-    if env.get('CM_DOCKER_IMAGE_NAME', '') != '':
-        docker_image_name = env['CM_DOCKER_IMAGE_NAME']
+    if env.get('MLC_DOCKER_IMAGE_NAME', '') != '':
+        docker_image_name = env['MLC_DOCKER_IMAGE_NAME']
     else:
-        docker_image_name = 'cm-script-' + \
-            env['CM_DOCKER_RUN_SCRIPT_TAGS'].replace(
+        docker_image_name = 'mlc-script-' + \
+            env['MLC_DOCKER_RUN_SCRIPT_TAGS'].replace(
                 ',', '-').replace('_', '-').replace('+', 'plus')
-        env['CM_DOCKER_IMAGE_NAME'] = docker_image_name
+        env['MLC_DOCKER_IMAGE_NAME'] = docker_image_name
 
-    docker_image_tag_extra = env.get('CM_DOCKER_IMAGE_TAG_EXTRA', '-latest')
+    docker_image_tag_extra = env.get('MLC_DOCKER_IMAGE_TAG_EXTRA', '-latest')
 
-    docker_image_tag = env.get('CM_DOCKER_IMAGE_TAG', docker_image_base.replace(
+    docker_image_tag = env.get('MLC_DOCKER_IMAGE_TAG', docker_image_base.replace(
         ':', '-').replace('_', '').replace("/", "-") + docker_image_tag_extra)
-    env['CM_DOCKER_IMAGE_TAG'] = docker_image_tag
+    env['MLC_DOCKER_IMAGE_TAG'] = docker_image_tag
 
     return

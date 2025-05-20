@@ -1,28 +1,51 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
 name: MLPerf inference MLCommons C++ ResNet50
 
 on:
   pull_request_target:
-    branches: [ "main", "dev", "mlperf-inference" ]
+    branches: [ "main", "dev" ]
     paths:
       - '.github/workflows/test-mlperf-inference-mlcommons-cpp-resnet50.yml'
       - '**'
       - '!**.md'
 
 jobs:
+  fetch-secret:
+    runs-on: ubuntu-latest
+    outputs:
+      encrypted_secret: ${{ steps.encrypt-secret.outputs.encrypted_secret }}
+    steps:
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          PAT: op://7basd2jirojjckncf6qnq3azai/bzbaco3uxoqs2rcyu42rvuccga/credential
+
+      - name: Encrypt secret
+        id: encrypt-secret
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          # AES-256 encrypt
+          encrypted=$(echo "${{ steps.op-load-secret.outputs.pat }}" | \
+            openssl enc -e -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 \
+            -pass pass:"$ENCRYPTION_KEY" -base64 -A)
+
+          echo "encrypted_secret=$encrypted" >> $GITHUB_OUTPUT
+          
   build:
+    name: MLPerf inference MLCommons C++ ResNet50
+    needs: [fetch-secret]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: [ "3.12" ]
-        llvm-version: [ "15.0.6", "16.0.4", "17.0.6" ]
+        compiler-string: [ "--adr.compiler.tags=gcc", "--adr.compiler.tags=aocc --env.MLC_AOCC_ACCEPT_EULA=yes", "--adr.compiler.tags=llvm --adr.compiler.version=17.0.6" ]
         os: [ubuntu-latest, windows-latest, macos-latest]
         exclude:
-          - llvm-version: "15.0.6"
-          - llvm-version: "16.0.4"
           - os: windows-latest
           - os: macos-latest
 
@@ -32,33 +55,53 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install cm4mlops on Windows
-      if: matrix.os == 'windows-latest'
+    - name: Install mlcflow
       run: |
-        $env:CM_PULL_DEFAULT_MLOPS_REPO = "no"; pip install cm4mlops
-    - name: Install dependencies on Unix Platforms
-      if: matrix.os != 'windows-latest'
-      run: |
-        CM_PULL_DEFAULT_MLOPS_REPO=no pip install cm4mlops
+        pip install mlcflow
     - name: Pull MLOps repository
       run: |
-        cm pull repo --url=${{ github.event.pull_request.head.repo.html_url }} --checkout=${{ github.event.pull_request.head.ref }}
-        cm run script --quiet --tags=get,sys-utils-cm
-        cm run script --quiet --tags=install,prebuilt,llvm --version=${{ matrix.llvm-version }}
+        mlc pull repo ${{ github.event.pull_request.head.repo.html_url }} --branch=${{ github.event.pull_request.head.ref }}
+        mlcr --quiet --tags=get,sys-utils-mlc
     - name: Test MLPerf Inference MLCommons C++ ResNet50 on ${{ matrix.os }}
       if: matrix.os == 'windows-latest'
       run: |
-        cm run script --tags=app,mlperf,inference,mlcommons,cpp --submitter="MLCommons" --hw_name=gh_${{ matrix.os }} --adr.loadgen.tags=_from-pip --pip_loadgen=yes -v --quiet
+        mlcr app,mlperf,inference,mlcommons,cpp --submitter="MLCommons" --hw_name=gh_${{ matrix.os }} --adr.loadgen.tags=_from-pip --pip_loadgen=yes -v --quiet
     - name: Test MLPerf Inference MLCommons C++ ResNet50 on ${{ matrix.os }}
       if: matrix.os != 'windows-latest'
       run: |
-        cmr "app mlperf inference mlcommons cpp" --submitter="MLCommons" --hw_name=gh_${{ matrix.os }} -v --quiet
-    - name: Push Results
-      if: github.repository_owner == 'gateoverflow'
+        mlcr app,mlperf,inference,mlcommons,cpp --submitter="MLCommons" --hw_name=gh_${{ matrix.os }} -v --quiet ${{ matrix.compiler-string }}
+    - name: Randomly Execute Step
+      id: random-check
+      run: |
+          RANDOM_NUMBER=$((RANDOM % 10))
+          echo "Random number is $RANDOM_NUMBER"
+          if [ "$RANDOM_NUMBER" -eq 0 ]; then
+            echo "run_step=true" >> $GITHUB_ENV
+          else
+            echo "run_step=false" >> $GITHUB_ENV
+          fi
+    - name: Decrypt secret
+      id: decrypt-secret
+      shell: bash
       env:
-          USER: "GitHub Action"
-          EMAIL: "admin@gateoverflow.com"
-          GITHUB_TOKEN: ${{ secrets.TEST_RESULTS_GITHUB_TOKEN }}
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        encrypted_secret: ${{ needs.fetch-secret.outputs.encrypted_secret }}
+      run: |
+        echo "Running on OS: ${{ matrix.os }}"
+
+        # Decrypt
+        decrypted=$(echo "$encrypted_secret" | \
+          openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 \
+          -pass pass:"$ENCRYPTION_KEY" -base64 -A)
+          
+        echo "::add-mask::$decrypted"
+        echo "DECRYPTED_SECRET=$decrypted" >> $GITHUB_OUTPUT
+    - name: Push Results
+      env:
+        GITHUB_TOKEN: ${{ steps.decrypt-secret.outputs.decrypted_secret }}
+        USER: mlcommons-bot
+        EMAIL: mlcommons-bot@users.noreply.github.com
+      if: github.repository_owner == 'mlcommons' && env.run_step == 'true'
       run: |
         git config --global user.name "${{ env.USER }}"
         git config --global user.email "${{ env.EMAIL }}"
@@ -66,4 +109,4 @@ jobs:
         git config --global credential.https://github.com.helper "!gh auth git-credential"
         git config --global credential.https://gist.github.com.helper ""
         git config --global credential.https://gist.github.com.helper "!gh auth git-credential"
-        cm run script --tags=push,github,mlperf,inference,submission --repo_url=https://github.com/mlcommons/mlperf_inference_test_submissions_v5.0 --repo_branch=dev --commit_message="Results from MLCommons C++ ResNet50 GH action on ${{ matrix.os }}" --quiet
+        mlcr push,github,mlperf,inference,submission --repo_url=https://github.com/mlcommons/mlperf_inference_test_submissions_v5.0 --repo_branch=dev --commit_message="Results from MLCommons C++ ResNet50 GH action on ${{ matrix.os }}" --quiet

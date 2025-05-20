@@ -1,6 +1,7 @@
-from cmind import utils
+from mlc import utils
 import os
 import hashlib
+from utils import *
 
 
 def preprocess(i):
@@ -21,22 +22,26 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    logger = automation.logger
 
-    filename = env.get('CM_EXTRACT_FILEPATH', '')
+    quiet = is_true(env.get('MLC_QUIET', False))
+
+    filename = env.get('MLC_EXTRACT_FILEPATH', '')
     if filename == '':
         return {
-            'return': 1, 'error': 'Extract with no download requested and CM_EXTRACT_FILEPATH is not set'}
+            'return': 1, 'error': 'Extract with no download requested and MLC_EXTRACT_FILEPATH is not set'}
 
     if windows:
         filename = filename.replace("%", "%%")
 
-    env['CM_EXTRACT_FILENAME'] = filename
+    env['MLC_EXTRACT_FILENAME'] = filename
 
     # Check if extract to some path outside CM cache (to reuse large files
     # later if cache is cleaned)
-    extract_path = env.get('CM_EXTRACT_PATH', '')
+    extract_path = env.get('MLC_EXTRACT_PATH', '')
     if extract_path != '':
+        if os.path.isfile(extract_path):
+            extract_path = os.path.dirname(extract_path)
         if not os.path.exists(extract_path):
             os.makedirs(extract_path, exist_ok=True)
 
@@ -44,114 +49,115 @@ def preprocess(i):
 
     # By default remove archive after extraction
     remove_extracted = False if env.get(
-        'CM_EXTRACT_REMOVE_EXTRACTED',
+        'MLC_EXTRACT_REMOVE_EXTRACTED',
         '').lower() == 'no' else True
 
     if filename.endswith(".zip") or filename.endswith(".pth"):
-        env['CM_EXTRACT_TOOL'] = "unzip"
+        env['MLC_EXTRACT_TOOL'] = "unzip"
     elif filename.endswith(".tar.gz"):
         if windows:
             x = '"' if ' ' in filename else ''
-            env['CM_EXTRACT_CMD0'] = 'gzip -d ' + x + filename + x
+            env['MLC_EXTRACT_CMD0'] = 'gzip -d ' + x + filename + x
             filename = filename[:-3]  # leave only .tar
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
-            env['CM_EXTRACT_TOOL'] = 'tar '
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
+            env['MLC_EXTRACT_TOOL'] = 'tar '
         elif os_info['platform'] == 'darwin':
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvzf '
-            env['CM_EXTRACT_TOOL'] = 'tar '
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvzf '
+            env['MLC_EXTRACT_TOOL'] = 'tar '
         else:
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' --skip-old-files -xvzf '
-            env['CM_EXTRACT_TOOL'] = 'tar '
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' --skip-old-files -xvzf '
+            env['MLC_EXTRACT_TOOL'] = 'tar '
     elif filename.endswith(".tar.xz"):
         if windows:
             x = '"' if ' ' in filename else ''
-            env['CM_EXTRACT_CMD0'] = 'xz -d ' + x + filename + x
+            env['MLC_EXTRACT_CMD0'] = 'xz -d ' + x + filename + x
             filename = filename[:-3]  # leave only .tar
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
-            env['CM_EXTRACT_TOOL'] = 'tar '
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
+            env['MLC_EXTRACT_TOOL'] = 'tar '
         else:
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvJf'
-            env['CM_EXTRACT_TOOL'] = 'tar '
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvJf'
+            env['MLC_EXTRACT_TOOL'] = 'tar '
     elif filename.endswith(".tar"):
-        env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
-        env['CM_EXTRACT_TOOL'] = 'tar '
+        env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
+        env['MLC_EXTRACT_TOOL'] = 'tar '
     elif filename.endswith(".gz"):
         # Check target filename
-        extracted_filename = env.get('CM_EXTRACT_EXTRACTED_FILENAME', '')
+        extracted_filename = env.get('MLC_EXTRACT_EXTRACTED_FILENAME', '')
         if extracted_filename == '':
             extracted_filename = os.path.basename(filename)[:-3]
-            env['CM_EXTRACT_EXTRACTED_FILENAME'] = extracted_filename
+            env['MLC_EXTRACT_EXTRACTED_FILENAME'] = extracted_filename
 
         x = '-c' if windows else '-k'
-        env['CM_EXTRACT_TOOL_OPTIONS'] = ' -d ' + \
+        env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -d ' + \
             (x + ' ' if not remove_extracted else '') + \
             ' > ' + q + extracted_filename + q + ' < '
 
-        env['CM_EXTRACT_TOOL'] = 'gzip '
-    elif env.get('CM_EXTRACT_UNZIP', '') == 'yes':
-        env['CM_EXTRACT_TOOL'] = 'unzip '
-    elif env.get('CM_EXTRACT_UNTAR', '') == 'yes':
-        env['CM_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
-        env['CM_EXTRACT_TOOL'] = 'tar '
-    elif env.get('CM_EXTRACT_GZIP', '') == 'yes':
-        env['CM_EXTRACT_CMD'] = 'gzip '
-        env['CM_EXTRACT_TOOL_OPTIONS'] = ' -d ' + \
+        env['MLC_EXTRACT_TOOL'] = 'gzip '
+    elif is_true(env.get('MLC_EXTRACT_UNZIP', '')):
+        env['MLC_EXTRACT_TOOL'] = 'unzip '
+    elif is_true(env.get('MLC_EXTRACT_UNTAR', '')):
+        env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -xvf'
+        env['MLC_EXTRACT_TOOL'] = 'tar '
+    elif is_true(env.get('MLC_EXTRACT_GZIP', '')):
+        env['MLC_EXTRACT_CMD'] = 'gzip '
+        env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -d ' + \
             ('-k ' if not remove_extracted else '')
     else:
         return {'return': 1,
-                'error': 'Neither CM_EXTRACT_UNZIP nor CM_EXTRACT_UNTAR is yes'}
+                'error': 'Neither MLC_EXTRACT_UNZIP nor MLC_EXTRACT_UNTAR is yes'}
 
-    env['CM_EXTRACT_PRE_CMD'] = ''
+    env['MLC_EXTRACT_PRE_CMD'] = ''
 
-    extract_to_folder = env.get('CM_EXTRACT_TO_FOLDER', '')
+    extract_to_folder = env.get('MLC_EXTRACT_TO_FOLDER', '')
 
     # Check if extract to additional folder in the current directory (or external path)
     # to avoid messing up other files and keep clean directory structure
     # particularly if archive has many sub-directories and files
     if extract_to_folder != '':
-        if 'tar ' in env['CM_EXTRACT_TOOL']:
+        if 'tar ' in env['MLC_EXTRACT_TOOL']:
             x = '' if windows else '-p'
             y = '"' if ' ' in extract_to_folder else ''
 
-            # env['CM_EXTRACT_TOOL_OPTIONS'] = ' --one-top-level='+ env['CM_EXTRACT_TO_FOLDER'] + env.get('CM_EXTRACT_TOOL_OPTIONS', '')
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -C ' + y + extract_to_folder + \
-                y + ' ' + env.get('CM_EXTRACT_TOOL_OPTIONS', '')
-            env['CM_EXTRACT_PRE_CMD'] = 'mkdir ' + x + ' ' + \
+            # env['MLC_EXTRACT_TOOL_OPTIONS'] = ' --one-top-level='+ env['MLC_EXTRACT_TO_FOLDER'] + env.get('MLC_EXTRACT_TOOL_OPTIONS', '')
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -C ' + y + extract_to_folder + \
+                y + ' ' + env.get('MLC_EXTRACT_TOOL_OPTIONS', '')
+            env['MLC_EXTRACT_PRE_CMD'] = 'mkdir ' + x + ' ' + \
                 y + extract_to_folder + y + ' ' + xsep + ' '
-            env['CM_EXTRACT_EXTRACTED_FILENAME'] = extract_to_folder
+            env['MLC_EXTRACT_EXTRACTED_FILENAME'] = extract_to_folder
 
-        elif 'unzip' in env['CM_EXTRACT_TOOL']:
-            env['CM_EXTRACT_TOOL_OPTIONS'] = ' -d ' + q + extract_to_folder + q
-            env['CM_EXTRACT_EXTRACTED_FILENAME'] = extract_to_folder
+        elif 'unzip' in env['MLC_EXTRACT_TOOL']:
+            env['MLC_EXTRACT_TOOL_OPTIONS'] = ' -d ' + \
+                q + extract_to_folder + q
+            env['MLC_EXTRACT_EXTRACTED_FILENAME'] = extract_to_folder
 
-    x = '"' if ' ' in filename else ''
-    env['CM_EXTRACT_CMD'] = env['CM_EXTRACT_PRE_CMD'] + env['CM_EXTRACT_TOOL'] + ' ' + \
-        env.get('CM_EXTRACT_TOOL_EXTRA_OPTIONS', '') + \
-        ' ' + env.get('CM_EXTRACT_TOOL_OPTIONS', '') + ' ' + x + filename + x
+    x = q if ' ' in filename else ''
+    env['MLC_EXTRACT_CMD'] = env['MLC_EXTRACT_PRE_CMD'] + env['MLC_EXTRACT_TOOL'] + ' ' + \
+        env.get('MLC_EXTRACT_TOOL_EXTRA_OPTIONS', '') + \
+        ' ' + env.get('MLC_EXTRACT_TOOL_OPTIONS', '') + ' ' + x + filename + x
 
-    print('')
-    print('Current directory: {}'.format(os.getcwd()))
-    print('Command line: "{}"'.format(env['CM_EXTRACT_CMD']))
-    print('')
+    logger.info('')
+    logger.info('Current directory: {}'.format(os.getcwd()))
+    logger.info('Command line: "{}"'.format(env['MLC_EXTRACT_CMD']))
+    logger.info('')
 
-    final_file = env.get('CM_EXTRACT_EXTRACTED_FILENAME', '')
+    final_file = env.get('MLC_EXTRACT_EXTRACTED_FILENAME', '')
 
     if final_file != '':
-        if env.get('CM_EXTRACT_EXTRACTED_CHECKSUM_FILE', '') != '':
-            env['CM_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = f"cd {q}{final_file}{q} {xsep}  md5sum -c {q}{env['CM_EXTRACT_EXTRACTED_CHECKSUM_FILE']}{q}"
-        elif env.get('CM_EXTRACT_EXTRACTED_CHECKSUM', '') != '':
+        if env.get('MLC_EXTRACT_EXTRACTED_CHECKSUM_FILE', '') != '':
+            env['MLC_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = f"cd {q}{final_file}{q} {xsep}  md5sum -c {q}{env['MLC_EXTRACT_EXTRACTED_CHECKSUM_FILE']}{q}"
+        elif env.get('MLC_EXTRACT_EXTRACTED_CHECKSUM', '') != '':
             x = '*' if os_info['platform'] == 'windows' else ''
-            env['CM_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = "echo {} {}{q}{}{q} | md5sum -c".format(
-                env.get('CM_EXTRACT_EXTRACTED_CHECKSUM'), x, env['CM_EXTRACT_EXTRACTED_FILENAME'])
+            env['MLC_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = "echo {} {}{q}{}{q} | md5sum -c".format(
+                env.get('MLC_EXTRACT_EXTRACTED_CHECKSUM'), x, env['MLC_EXTRACT_EXTRACTED_FILENAME'])
         else:
-            env['CM_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = ""
+            env['MLC_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = ""
     else:
-        env['CM_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = ""
+        env['MLC_EXTRACT_EXTRACTED_CHECKSUM_CMD'] = ""
 
 # Not needed - can be simpler with cmd /c {empty}
 #    if os_info['platform'] == 'windows':
 #        # Check that if empty CMD, should add ""
-#        for x in ['CM_EXTRACT_CMD', 'CM_EXTRACT_EXTRACTED_CHECKSUM_CMD']:
+#        for x in ['MLC_EXTRACT_CMD', 'MLC_EXTRACT_EXTRACTED_CHECKSUM_CMD']:
 #            env[x+'_USED']='YES' if env.get(x,'')!='' else 'NO'
 
     # If force cache, add filepath to tag unless _path is used ...
@@ -170,46 +176,58 @@ def postprocess(i):
 
     env = i['env']
 
-    extract_to_folder = env.get('CM_EXTRACT_TO_FOLDER', '')
-    extract_path = env.get('CM_EXTRACT_PATH', '')
-
-    extracted_file = env.get('CM_EXTRACT_EXTRACTED_FILENAME', '')
+    extract_to_folder = env.get('MLC_EXTRACT_TO_FOLDER', '')
+    extract_path = env.get('MLC_EXTRACT_PATH', '')
+    folderpath = None
+    extracted_file = env.get('MLC_EXTRACT_EXTRACTED_FILENAME', '')
 
     # Preparing filepath
-    #   Can be either full extracted filename (such as model) or folder
+    # Can be either the full extracted filename (such as model file) or folder
 
     if extracted_file != '':
         filename = os.path.basename(extracted_file)
 
 # We do not use this env variable anymore
-#        folderpath = env.get('CM_EXTRACT_EXTRACT_TO_PATH', '')
+#        folderpath = env.get('MLC_EXTRACT_EXTRACT_TO_PATH', '')
         folderpath = extract_path if extract_path != '' else os.getcwd()
 
         filepath = os.path.join(folderpath, filename)
     else:
-
         filepath = os.getcwd()  # Extracted to the root cache folder
+        folderpath = os.getcwd()
 
     if not os.path.exists(filepath):
         return {
             'return': 1, 'error': 'Path {} was not created or doesn\'t exist'.format(filepath)}
-# return {'return':1, 'error': 'CM_EXTRACT_EXTRACTED_FILENAME and
-# CM_EXTRACT_TO_FOLDER are not set'}
+# return {'return':1, 'error': 'MLC_EXTRACT_EXTRACTED_FILENAME and
+# MLC_EXTRACT_TO_FOLDER are not set'}
 
-    env['CM_EXTRACT_EXTRACTED_PATH'] = filepath
+    env['MLC_EXTRACT_EXTRACTED_PATH'] = filepath
 
     # Set external environment variable with the final path
-    if env.get('CM_EXTRACT_FINAL_ENV_NAME', '') != '':
-        env[env['CM_EXTRACT_FINAL_ENV_NAME']] = filepath
+    if env.get('MLC_EXTRACT_FINAL_ENV_NAME', '') != '':
+        env[env['MLC_EXTRACT_FINAL_ENV_NAME']] = filepath
 
     # Detect if this file will be deleted or moved
-    env['CM_GET_DEPENDENT_CACHED_PATH'] = filepath
+    env['MLC_GET_DEPENDENT_CACHED_PATH'] = filepath
 
     # Check if need to remove archive after extraction
-    if env.get('CM_EXTRACT_REMOVE_EXTRACTED', '').lower() != 'no':
-        archive_filepath = env.get('CM_EXTRACT_FILEPATH', '')
+    if is_true(env.get('MLC_EXTRACT_REMOVE_EXTRACTED', '')):
+        archive_filepath = env.get('MLC_EXTRACT_FILEPATH', '')
         if archive_filepath != '' and os.path.isfile(archive_filepath):
             os.remove(archive_filepath)
+
+    # Check if only a single folder is created and if so, export the folder
+    # name
+    if folderpath:
+        sub_items = os.listdir(folderpath)
+        sub_folders = [
+            item for item in sub_items if os.path.isdir(
+                os.path.join(
+                    folderpath, item))]
+        if len(sub_folders) == 1:
+            env['MLC_EXTRACT_EXTRACTED_SUBDIR_PATH'] = os.path.join(
+                folderpath, sub_folders[0])
 
     # Since may change directory, check if need to clean some temporal files
     automation.clean_some_tmp_files({'env': env})

@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -16,7 +17,7 @@ def postprocess(i):
     os_info = i['os_info']
 
     env = i['env']
-    if env.get('CM_TVM_PIP_INSTALL', '') == "yes":
+    if is_true(env.get('MLC_TVM_PIP_INSTALL', '')):
         return {'return': 0}
 
     tvm_home = env['TVM_HOME']
@@ -39,12 +40,12 @@ def postprocess(i):
             env['+C_INCLUDE_PATH'].append(include_path)
             env['+CPLUS_INCLUDE_PATH'].append(include_path)
 
-        env['CM_TVM_PATH_INCLUDE'] = include_path
+        env['MLC_TVM_PATH_INCLUDE'] = include_path
 
     # Lib
     lib_path = os.path.join(tvm_home, 'build')
     env['+LD_LIBRARY_PATH'].append(lib_path)
     env['+DYLD_FALLBACK_LIBRARY_PATH'].append(lib_path)
-    env['CM_TVM_PATH_LIB'] = lib_path
+    env['MLC_TVM_PATH_LIB'] = lib_path
 
     return {'return': 0}

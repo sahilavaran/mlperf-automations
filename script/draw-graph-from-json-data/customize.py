@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -12,15 +13,16 @@ def preprocess(i):
 
     automation = i['automation']
 
-    quiet = (env.get('CM_QUIET', False) == 'yes')
+    quiet = is_true(env.get('MLC_QUIET', False))
+    q = '"' if os_info['platform'] == 'windows' else "'"
 
-    env['CM_RUN_CMD'] = f"""{env['CM_PYTHON_BIN_WITH_PATH']} {os.path.join(env['CM_TMP_CURRENT_SCRIPT_PATH'],"process-cm-deps.py")}  {env['CM_JSON_INPUT_FILE']}"""
+    env['MLC_RUN_CMD'] = f"""{env['MLC_PYTHON_BIN_WITH_PATH']} {q}{os.path.join(env['MLC_TMP_CURRENT_SCRIPT_PATH'],"process-mlc-deps.py")}{q} {q}{env['MLC_JSON_INPUT_FILE']}{q} """
 
-    if env.get('CM_OUTPUT_IMAGE_PATH', '') != '':
-        env['CM_RUN_CMD'] += f""" --output_image {env['CM_OUTPUT_IMAGE_PATH']}"""
+    if env.get('MLC_OUTPUT_IMAGE_PATH', '') != '':
+        env['MLC_RUN_CMD'] += f""" --output_image {q}{env['MLC_OUTPUT_IMAGE_PATH']}{q} """
 
-    if env.get('CM_OUTPUT_MERMAID_PATH', '') != '':
-        env['CM_RUN_CMD'] += f""" --output_mermaid {env['CM_OUTPUT_MERMAID_PATH']}"""
+    if env.get('MLC_OUTPUT_MERMAID_PATH', '') != '':
+        env['MLC_RUN_CMD'] += f""" --output_mermaid {q}{env['MLC_OUTPUT_MERMAID_PATH']}{q} """
 
     return {'return': 0}
 

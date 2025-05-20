@@ -1,4 +1,5 @@
-from cmind import utils
+from mlc import utils
+from utils import is_true
 import os
 
 
@@ -9,7 +10,7 @@ def preprocess(i):
     env = i['env']
 
     automation = i['automation']
-
+    logger = automation.logger
     recursion_spaces = i['recursion_spaces']
 
     run_script_input = i['run_script_input']
@@ -21,9 +22,9 @@ def preprocess(i):
     meta = i['meta']
 
     found = False
-    install = env.get('CM_JAVAC_PREBUILT_INSTALL', '') in ['on', 'True', True]
+    install = is_true(env.get('MLC_JAVAC_PREBUILT_INSTALL', ''))
 
-    env_path_key = 'CM_JAVAC_BIN_WITH_PATH'
+    env_path_key = 'MLC_JAVAC_BIN_WITH_PATH'
 
     # If not force install, search for artifact
     if not install:
@@ -45,29 +46,29 @@ def preprocess(i):
     if not found or install:
 
         if os_info['platform'] == 'windows':
-            env['CM_JAVAC_PREBUILT_HOST_OS'] = 'windows'
-            env['CM_JAVAC_PREBUILT_EXT'] = '.zip'
+            env['MLC_JAVAC_PREBUILT_HOST_OS'] = 'windows'
+            env['MLC_JAVAC_PREBUILT_EXT'] = '.zip'
         else:
-            env['CM_JAVAC_PREBUILT_HOST_OS'] = 'linux'
-            env['CM_JAVAC_PREBUILT_EXT'] = '.tar.gz'
+            env['MLC_JAVAC_PREBUILT_HOST_OS'] = 'linux'
+            env['MLC_JAVAC_PREBUILT_EXT'] = '.tar.gz'
 
-        url = env['CM_JAVAC_PREBUILT_URL']
-        filename = env['CM_JAVAC_PREBUILT_FILENAME']
+        url = env['MLC_JAVAC_PREBUILT_URL']
+        filename = env['MLC_JAVAC_PREBUILT_FILENAME']
 
-        javac_prebuilt_version = env['CM_JAVAC_PREBUILT_VERSION']
-        javac_prebuilt_build = env['CM_JAVAC_PREBUILT_BUILD']
+        javac_prebuilt_version = env['MLC_JAVAC_PREBUILT_VERSION']
+        javac_prebuilt_build = env['MLC_JAVAC_PREBUILT_BUILD']
 
-        for key in ['CM_JAVAC_PREBUILT_VERSION',
-                    'CM_JAVAC_PREBUILT_BUILD',
-                    'CM_JAVAC_PREBUILT_HOST_OS',
-                    'CM_JAVAC_PREBUILT_EXT']:
+        for key in ['MLC_JAVAC_PREBUILT_VERSION',
+                    'MLC_JAVAC_PREBUILT_BUILD',
+                    'MLC_JAVAC_PREBUILT_HOST_OS',
+                    'MLC_JAVAC_PREBUILT_EXT']:
             url = url.replace('${' + key + '}', env[key])
             filename = filename.replace('${' + key + '}', env[key])
 
-        env['CM_JAVAC_PREBUILT_URL'] = url
-        env['CM_JAVAC_PREBUILT_FILENAME'] = filename
+        env['MLC_JAVAC_PREBUILT_URL'] = url
+        env['MLC_JAVAC_PREBUILT_FILENAME'] = filename
 
-        print('')
+        logger.info('')
         print(
             recursion_spaces +
             '    Downloading and installing prebuilt Java from {} ...'.format(
@@ -87,7 +88,7 @@ def preprocess(i):
             return {'return': 1,
                     'error': 'can\'t find target file {}'.format(target_file)}
 
-        print('')
+        logger.info('')
         print(
             recursion_spaces +
             '    Registering file {} ...'.format(target_file))
@@ -118,15 +119,18 @@ def detect_version(i):
 
     r = i['automation'].parse_version({'match_text': r'javac\s*([\d.]+)',
                                        'group_number': 1,
-                                       'env_key': 'CM_JAVAC_VERSION',
+                                       'env_key': 'MLC_JAVAC_VERSION',
                                        'which_env': i['env'],
                                        'debug': True})
     if r['return'] > 0:
         return r
 
     version = r['version']
+    logger = i['automation'].logger
 
-    print(i['recursion_spaces'] + '    Detected version: {}'.format(version))
+    logger.info(
+        i['recursion_spaces'] +
+        '    Detected version: {}'.format(version))
 
     return {'return': 0, 'version': version}
 
@@ -140,21 +144,22 @@ def postprocess(i):
     if r['return'] > 0:
         return r
 
-    version = env['CM_JAVAC_VERSION']
-    env['CM_JAVAC_CACHE_TAGS'] = 'version-' + version
+    version = env['MLC_JAVAC_VERSION']
+    env['MLC_JAVAC_CACHE_TAGS'] = 'version-' + version
 
-    found_file_path = env['CM_JAVAC_BIN_WITH_PATH']
+    found_file_path = env['MLC_JAVAC_BIN_WITH_PATH']
     file_name = os.path.basename(found_file_path)
     file_path = os.path.dirname(found_file_path)
 
-    env['CM_JAVAC_BIN'] = file_name
+    env['MLC_JAVAC_BIN'] = file_name
 
     if os_info['platform'] == 'windows':
-        env['CM_JAVA_BIN'] = 'java.exe'
+        env['MLC_JAVA_BIN'] = 'java.exe'
     else:
-        env['CM_JAVA_BIN'] = 'java'
+        env['MLC_JAVA_BIN'] = 'java'
 
-    env['CM_JAVA_BIN_WITH_PATH'] = os.path.join(file_path, env['CM_JAVA_BIN'])
+    env['MLC_JAVA_BIN_WITH_PATH'] = os.path.join(
+        file_path, env['MLC_JAVA_BIN'])
 
     found_path = os.path.dirname(found_file_path)
     javac_home_path = os.path.dirname(found_path)

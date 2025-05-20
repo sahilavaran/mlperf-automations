@@ -1,4 +1,4 @@
-from cmind import utils
+from mlc import utils
 import os
 
 
@@ -15,8 +15,4 @@ def preprocess(i):
 
     recursion_spaces = i['recursion_spaces']
 
-    return {'return': 0}
-
-
-def postprocess(i):
     return {'return': 0}

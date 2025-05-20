@@ -1,0 +1,164 @@
+alias: run-mlperf-inference-submission-checker
+automation_alias: script
+automation_uid: 5b4e0237da074764
+cache: false
+category: MLPerf benchmark support
+clean_files: []
+default_env:
+  MLC_MLPERF_SHORT_RUN: 'no'
+file_path_env_keys:
+  - MLPERF_INFERENCE_SUBMISSION_TAR_FILE
+folder_path_env_keys:
+  - MLC_MLPERF_INFERENCE_SUBMISSION_DIR
+default_version: master
+deps:
+- names:
+  - python
+  - python3
+  tags: get,python3
+- names:
+  - inference-src
+  - submission-checker-src
+  tags: get,mlcommons,inference,src
+- tags: pull,git,repo
+  env:
+    MLC_GIT_CHECKOUT_PATH: '<<<MLC_MLPERF_INFERENCE_SOURCE>>>'
+  enable_if_env:
+    MLC_MLPERF_INFERENCE_PULL_SRC_CHANGES:
+    - 'yes'
+- tags: get,generic-python-lib,_xlsxwriter
+- names:
+  - pyarrow
+  tags: get,generic-python-lib,_package.pyarrow
+- names:
+  - pandas
+  tags: get,generic-python-lib,_pandas
+  version_min: 1.0.0
+- names:
+  - get-mlperf-submission-dir
+  skip_if_env:
+    MLC_MLPERF_INFERENCE_SUBMISSION_DIR:
+    - 'on'
+  tags: get,mlperf,submission,dir
+- enable_if_env:
+    MLC_TMP_MLPERF_INFERENCE_PREPROCESS_SUBMISSION:
+    - 'on'
+  tags: preprocess,mlperf,inference,submission
+docker:
+  mlc_repo: mlcommons@mlperf-automations
+  mlc_repo_branch: dev
+  extra_run_args: ' --cap-add SYS_ADMIN'
+  os: ubuntu
+  os_version: '22.04'
+  pre_run_cmds:
+    - mlc pull repo
+  real_run: false
+  use_host_group_id: true
+  use_host_user_id: true
+  deps:
+    - names:
+      - get-mlperf-submission-dir
+      skip_if_env:
+        MLC_MLPERF_INFERENCE_SUBMISSION_DIR:
+        - 'on'
+      tags: get,mlperf,submission,dir
+    - enable_if_env:
+        MLC_TMP_MLPERF_INFERENCE_PREPROCESS_SUBMISSION:
+        - 'on'
+      tags: preprocess,mlperf,inference,submission
+  input_mapping:
+    submission_dir: MLC_MLPERF_INFERENCE_SUBMISSION_DIR
+    submission_tar_file: MLPERF_INFERENCE_SUBMISSION_TAR_FILE
+  mounts:
+  - ${{ MLC_MLPERF_INFERENCE_SUBMISSION_DIR }}:${{ MLC_MLPERF_INFERENCE_SUBMISSION_DIR }}
+  - ${{ MLPERF_INFERENCE_SUBMISSION_TAR_FILE }}:${{ MLPERF_INFERENCE_SUBMISSION_TAR_FILE }}
+input_mapping:
+  extra_args: MLC_MLPERF_SUBMISSION_CHECKER_EXTRA_ARGS
+  extra_checker_args: MLC_MLPERF_SUBMISSION_CHECKER_EXTRA_ARGS
+  extra_model_benchmark_map: MLC_MLPERF_EXTRA_MODEL_MAPPING
+  input: MLC_MLPERF_INFERENCE_SUBMISSION_DIR
+  power: MLC_MLPERF_POWER
+  preprocess: MLC_TMP_MLPERF_INFERENCE_PREPROCESS_SUBMISSION
+  preprocess_submission: MLC_TMP_MLPERF_INFERENCE_PREPROCESS_SUBMISSION
+  push_to_github: MLC_MLPERF_RESULT_PUSH_TO_GITHUB
+  pull_changes: MLC_MLPERF_INFERENCE_PULL_SRC_CHANGES
+  pull_inference_changes: MLC_MLPERF_INFERENCE_PULL_SRC_CHANGES
+  repo_branch: MLC_MLPERF_RESULTS_GIT_REPO_BRANCH
+  repo_name: MLC_MLPERF_RESULTS_GIT_REPO_NAME
+  repo_owner: MLC_MLPERF_RESULTS_GIT_REPO_OWNER
+  skip_compliance: MLC_MLPERF_SKIP_COMPLIANCE
+  skip_power_check: MLC_MLPERF_SKIP_POWER_CHECK
+  src_version: MLC_MLPERF_SUBMISSION_CHECKER_VERSION
+  submission_dir: MLC_MLPERF_INFERENCE_SUBMISSION_DIR
+  submitter: MLC_MLPERF_SUBMITTER
+  submitter_id: MLC_MLPERF_SUBMITTER_ID
+  submission_tar_file: MLPERF_INFERENCE_SUBMISSION_TAR_FILE
+  tar: MLC_TAR_SUBMISSION_DIR
+post_deps:
+- enable_if_env:
+    MLC_MLPERF_DASHBOARD:
+    - 'on'
+  tags: publish-results,dashboard
+- enable_if_env:
+    MLC_MLPERF_RESULT_PUSH_TO_GITHUB:
+    - 'on'
+  names:
+  - push-to-github
+  tags: publish-results,github
+- enable_if_any_env:
+    MLC_TAR_SUBMISSION_DIR:
+    - 'yes'
+    MLC_MLPERF_SUBMITTER_ID:
+    - 'yes'
+  tags: run,tar
+  env:
+    MLC_TAR_INPUT_DIR: <<<MLC_MLPERF_INFERENCE_SUBMISSION_DIR>>>
+    MLC_TAR_SUB_FOLDERS_TO_INCLUDE: closed,open,network
+    COPYFILE_DISABLE: 1
+- enable_if_env:
+    MLC_MLPERF_SUBMITTER_ID:
+    - 'yes'
+  tags: submit,mlperf,results,_inference
+  env:
+    MLC_MLPERF_SUBMISSION_FILE: <<<MLC_TAR_OUTFILE>>>
+tags:
+- run
+- mlc
+- mlcommons
+- mlperf
+- inference
+- mlperf-inference
+- submission
+- checker
+- submission-checker
+- mlc-submission-checker
+uid: 15d03ec2c1af4297
+variations:
+  short-run:
+    env:
+      MLC_MLPERF_SHORT_RUN: 'yes'
+versions:
+  master:
+    adr:
+      submission-checker-src:
+        version: master
+  r3.0:
+    adr:
+      submission-checker-src:
+        version: r3.0
+  r3.1:
+    adr:
+      submission-checker-src:
+        version: r3.1
+  r4.0:
+    adr:
+      submission-checker-src:
+        version: r4.0
+  r4.1:
+    adr:
+      submission-checker-src:
+        version: r4.1
+  r5.0:
+    adr:
+      submission-checker-src:
+        version: master
